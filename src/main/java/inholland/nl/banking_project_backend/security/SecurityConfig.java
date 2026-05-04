@@ -50,7 +50,7 @@ public class SecurityConfig {
                     "https://anasstyyaa.github.io/banking-project-frontend"
                 ));
                 config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-                config.setAllowedHeaders(List.of("*"));
+                config.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Requested-With"));
                 config.setAllowCredentials(true);
                 return config;
             }))
