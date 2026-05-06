@@ -32,4 +32,7 @@ public class UserController {
         return ResponseEntity.ok(userService.updatePhoneNumber(principal.getName(), request));
     }
 }
+<<<<<<< HEAD
 //url hacer mas general
+=======
+>>>>>>> parent of ebea173 (Revert "qwerty")

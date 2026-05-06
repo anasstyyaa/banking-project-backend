@@ -1,19 +1,24 @@
 package inholland.nl.banking_project_backend.services;
 
 import inholland.nl.banking_project_backend.dtos.UserDTO;
+import inholland.nl.banking_project_backend.models.AccountModel;
 import inholland.nl.banking_project_backend.models.UserModel;
-import inholland.nl.banking_project_backend.models.RoleEnum;
+import inholland.nl.banking_project_backend.repositories.AccountRepository;
 import inholland.nl.banking_project_backend.repositories.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
+import java.util.List;
+
 
 @Service
 @RequiredArgsConstructor
 public class UserSerivce {
     private final UserRepository userRepository;
+    private final AccountRepository accountRepository;
     private final PasswordEncoder passwordEncoder;
 
     public UserModel create(UserModel user) {
@@ -27,7 +32,10 @@ public class UserSerivce {
 
     }
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
+=======
+>>>>>>> parent of ebea173 (Revert "qwerty")
 
    //profiles 
     public UserDTO.ProfileResponse getProfile(String email) {
@@ -45,7 +53,11 @@ public class UserSerivce {
         BigDecimal totalBalance = accounts.stream()
                 .map(AccountModel::getBalance)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+<<<<<<< HEAD
 //mappear
+=======
+
+>>>>>>> parent of ebea173 (Revert "qwerty")
         return new UserDTO.ProfileResponse(
                 user.getEmail(),
                 user.getFirstName(),
@@ -65,5 +77,8 @@ public class UserSerivce {
                 account.getBalance()
         );
     }
+<<<<<<< HEAD
 >>>>>>> parent of 57be30c (Revert "..")
+=======
+>>>>>>> parent of ebea173 (Revert "qwerty")
 }
