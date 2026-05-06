@@ -48,7 +48,7 @@ public class UserSerivce {
         BigDecimal totalBalance = accounts.stream()
                 .map(AccountModel::getBalance)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-
+//mappear
         return new UserDTO.ProfileResponse(
                 user.getEmail(),
                 user.getFirstName(),
