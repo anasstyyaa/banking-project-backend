@@ -6,7 +6,10 @@ import org.springframework.stereotype.Repository;
 import java.util.Optional;
 
 @Repository
-public interface UserRepository extends JpaRepository<UserModel, Integer> {
-    Optional<UserModel> findByUsername(String username);
+public interface UserRepository extends JpaRepository<UserModel, Long> {
+    // Finds a user by the email used for authentication.
     Optional<UserModel> findByEmail(String email);
+
+    // Checks whether a user email is already registered.
+    boolean existsByEmail(String email);
 }
