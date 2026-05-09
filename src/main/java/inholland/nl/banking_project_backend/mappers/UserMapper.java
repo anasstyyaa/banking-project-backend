@@ -33,4 +33,18 @@ public class UserMapper {
                 entity.getRole()
         );
     }
+
+    public UserDTO.RegistrationRequest toRegistrationRequest(UserModel entity) {
+        if (entity == null) return null;
+
+        return new UserDTO.RegistrationRequest(
+                entity.getId(),
+                entity.getFirstName(),
+                entity.getLastName(),
+                entity.getEmail(),
+                entity.getBsn(),
+                entity.getPhoneNumber(),
+                entity.getRole()
+        );
+    }
 }
