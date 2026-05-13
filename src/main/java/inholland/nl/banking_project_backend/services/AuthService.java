@@ -1,40 +1,36 @@
 package inholland.nl.banking_project_backend.services;
 
 import inholland.nl.banking_project_backend.dtos.UserDTO;
+import inholland.nl.banking_project_backend.mappers.UserMapper;
 import inholland.nl.banking_project_backend.models.RoleEnum;
 import inholland.nl.banking_project_backend.models.UserModel;
-import inholland.nl.banking_project_backend.services.UserSerivce;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 @RequiredArgsConstructor
 public class AuthService {
-    private final UserSerivce userService;
+    private final UserService userService;
+    private final UserMapper userMapper;
     private final JWTService jwtService;
+    private final BCryptPasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
 
     public UserDTO.LoginResponse register(UserDTO.RegisterRequest dto) {
-        UserModel newUser = new UserModel();
-        newUser.setEmail(dto.email());
-        newUser.setPassword(dto.password());
-        newUser.setBsn(dto.bsn());
-        newUser.setFirstName(dto.firstName());
-        newUser.setLastName(dto.lastName());
-        newUser.setPhoneNumber(dto.phoneNumber());
-        newUser.setRole(RoleEnum.ROLE_CUSTOMER);
-        newUser.setIsApproved(false);
-
+        if (userService.existsByEmail(dto.email())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already exists");
+        }
+        UserModel newUser = userMapper.toEntity(dto);
+        newUser.setPassword(passwordEncoder.encode(dto.password()));
         UserModel savedUser = userService.create(newUser);
-        String token = jwtService.generateToken(savedUser.getEmail(), savedUser.getRole().name());
 
-        return new UserDTO.LoginResponse(
-                savedUser.getEmail(),
-                token,
-                savedUser.getRole()
-        );
+        String token = jwtService.generateToken(savedUser.getEmail(), savedUser.getRole().name());
+        return new UserDTO.LoginResponse(savedUser.getEmail(), token, savedUser.getRole());
     }
 
     public UserDTO.LoginResponse login(UserDTO.LoginRequest dto) {

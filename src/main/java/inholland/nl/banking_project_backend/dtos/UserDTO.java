@@ -33,4 +33,14 @@ public class UserDTO {
             String email,
             RoleEnum role
     ) {}
+
+    public record RegistrationRequest(
+            Long id,
+            String firstName,
+            String lastName,
+            String email,
+            String bsn,
+            String phoneNumber,
+            RoleEnum role
+    ) {}
 }
