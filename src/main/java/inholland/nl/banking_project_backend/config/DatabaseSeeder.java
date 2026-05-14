@@ -1,10 +1,10 @@
 package inholland.nl.banking_project_backend.config;
 
 import inholland.nl.banking_project_backend.enums.AccountTypeEnum;
-import inholland.nl.banking_project_backend.enums.RoleEnum;
 import inholland.nl.banking_project_backend.enums.TransactionTypeEnum;
 import inholland.nl.banking_project_backend.models.AccountModel;
 import inholland.nl.banking_project_backend.models.CustomerProfileModel;
+import inholland.nl.banking_project_backend.models.RoleEnum;
 import inholland.nl.banking_project_backend.models.TransactionModel;
 import inholland.nl.banking_project_backend.models.UserModel;
 import inholland.nl.banking_project_backend.repositories.AccountRepository;
@@ -41,14 +41,18 @@ public class DatabaseSeeder {
 
     // Creates a complete demo banking setup for local development.
     private void seedDemoData() {
-        UserModel employee = createUser("admin@inhollandbank.nl", "Admin123!", "Bank", "Manager", "997654321", "0612345678", RoleEnum.ROLE_EMPLOYEE);
-        UserModel firstCustomer = createUser("testuser@gmail.com", "User123!", "Testy", "Customer", "987654321", "0612345688", RoleEnum.ROLE_CUSTOMER);
-        UserModel secondCustomer = createUser("jane.customer@gmail.com", "User123!", "Jane", "Customer", "987654322", "0612345689", RoleEnum.ROLE_CUSTOMER);
+        UserModel employee = createUser("admin@inhollandbank.nl", "Admin123!", "Bank", "Manager", "997654321", "+31612345678", RoleEnum.ROLE_EMPLOYEE);
+        UserModel firstCustomer = createUser("testuser@gmail.com", "User123!", "Testy", "McTestFace", "987654321", "+31612345688", RoleEnum.ROLE_CUSTOMER);
+        UserModel secondCustomer = createUser("jane.customer@gmail.com", "User123!", "Jane", "Customer", "987654322", "+31612345689", RoleEnum.ROLE_CUSTOMER);
         CustomerProfileModel firstProfile = createProfile(firstCustomer);
         CustomerProfileModel secondProfile = createProfile(secondCustomer);
         AccountModel firstChecking = createAccount(firstProfile, "NL01INHO000000001", AccountTypeEnum.CHECKING, "1250.00", "-500.00", "1000.00");
         AccountModel firstSavings = createAccount(firstProfile, "NL01INHO000000002", AccountTypeEnum.SAVINGS, "2500.00", "0.00", "750.00");
         AccountModel secondChecking = createAccount(secondProfile, "NL01INHO000000003", AccountTypeEnum.CHECKING, "800.00", "-250.00", "700.00");
+        firstCustomer.setIban(firstChecking.getIban());
+        secondCustomer.setIban(secondChecking.getIban());
+        userRepository.save(firstCustomer);
+        userRepository.save(secondCustomer);
         createTransaction(TransactionTypeEnum.DEPOSIT, null, firstChecking, "250.00", firstCustomer);
         createTransaction(TransactionTypeEnum.TRANSFER, firstChecking, secondChecking, "75.00", firstCustomer);
         createTransaction(TransactionTypeEnum.WITHDRAWAL, firstChecking, null, "40.00", firstCustomer);

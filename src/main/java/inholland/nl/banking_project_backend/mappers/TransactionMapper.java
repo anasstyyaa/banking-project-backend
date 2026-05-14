@@ -1,6 +1,7 @@
-package inholland.nl.banking_project_backend.mapper;
+package inholland.nl.banking_project_backend.mappers;
 
 import inholland.nl.banking_project_backend.dtos.TransactionDTO;
+import inholland.nl.banking_project_backend.enums.TransactionTypeEnum;
 import inholland.nl.banking_project_backend.models.AccountModel;
 import inholland.nl.banking_project_backend.models.TransactionModel;
 import inholland.nl.banking_project_backend.models.UserModel;
@@ -10,7 +11,8 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Component
-public class TransactionServiceMapper {
+public class TransactionMapper {
+
     // Creates a transaction entity with stable IBAN snapshots for history.
     public TransactionModel toModel(
             TransactionDTO.CreateRequest request,
@@ -43,15 +45,16 @@ public class TransactionServiceMapper {
         );
     }
 
-    // Reads the IBAN from an account when the account exists for this transaction type.
+    // Reads an IBAN only when the account exists for the transaction type.
     private String getIban(AccountModel account) {
         return account == null ? null : account.getIban();
     }
 
     // Presents withdrawals as negative amounts while keeping stored amount positive.
     private BigDecimal signedAmount(TransactionModel transaction) {
-        return transaction.getType().name().equals("WITHDRAWAL")
-                ? transaction.getAmount().negate()
-                : transaction.getAmount();
+        if (transaction.getType() == TransactionTypeEnum.WITHDRAWAL) {
+            return transaction.getAmount().negate();
+        }
+        return transaction.getAmount();
     }
 }

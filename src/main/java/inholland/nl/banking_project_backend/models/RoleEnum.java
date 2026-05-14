@@ -1,4 +1,4 @@
-package inholland.nl.banking_project_backend.enums;
+package inholland.nl.banking_project_backend.models;
 
 public enum RoleEnum {
     ROLE_CUSTOMER,

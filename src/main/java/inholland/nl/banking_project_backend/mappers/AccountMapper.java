@@ -1,11 +1,12 @@
-package inholland.nl.banking_project_backend.mapper;
+package inholland.nl.banking_project_backend.mappers;
 
 import inholland.nl.banking_project_backend.dtos.AccountDTO;
 import inholland.nl.banking_project_backend.models.AccountModel;
 import org.springframework.stereotype.Component;
 
 @Component
-public class AccountServiceMapper {
+public class AccountMapper {
+
     // Converts an account entity into a frontend-safe account response.
     public AccountDTO.AccountResponse toResponse(AccountModel account) {
         return new AccountDTO.AccountResponse(

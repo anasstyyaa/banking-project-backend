@@ -1,5 +1,5 @@
 package inholland.nl.banking_project_backend.dtos;
-import inholland.nl.banking_project_backend.enums.RoleEnum;
+import inholland.nl.banking_project_backend.models.RoleEnum;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -15,8 +15,8 @@ public class UserDTO {
     ) {}
 
     public record LoginRequest(
-            @NotBlank @Email String email,
-            @NotBlank String password
+            String email,
+            String password
     ) {}
 
     public record LoginResponse(
@@ -29,7 +29,18 @@ public class UserDTO {
     public record UserResponse(
             String firstName,
             String lastName,
+            String iban,
             String email,
+            RoleEnum role
+    ) {}
+
+    public record RegistrationRequest(
+            Long id,
+            String firstName,
+            String lastName,
+            String email,
+            String bsn,
+            String phoneNumber,
             RoleEnum role
     ) {}
 }
