@@ -4,13 +4,14 @@ import inholland.nl.banking_project_backend.enums.AccountTypeEnum;
 import inholland.nl.banking_project_backend.models.AccountModel;
 import inholland.nl.banking_project_backend.models.CustomerProfileModel;
 import inholland.nl.banking_project_backend.models.UserModel;
-import inholland.nl.banking_project_backend.utils.IbanGenerator;
 import inholland.nl.banking_project_backend.repositories.AccountRepository;
 import inholland.nl.banking_project_backend.repositories.CustomerProfileRepository;
 import inholland.nl.banking_project_backend.repositories.UserRepository;
+import inholland.nl.banking_project_backend.utils.IbanGenerator;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -24,30 +25,26 @@ public class UserService {
     private final CustomerProfileRepository customerProfileRepository;
     private final AccountRepository accountRepository;
     private final IbanGenerator ibanGenerator;
+    private final PasswordEncoder passwordEncoder;
 
-    // Creates a user record after authentication-specific preparation is complete.
     public UserModel create(UserModel user) {
         return userRepository.save(user);
     }
 
-    // Finds a user by email or throws a clean not-found exception.
     public UserModel findByEmail(String email) {
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new EntityNotFoundException("User not found with email: " + email));
 
     }
 
-    // Checks whether an email is already registered.
     public boolean existsByEmail(String email) {
         return userRepository.existsByEmail(email);
     }
 
-    // Returns users waiting for employee approval.
     public List<UserModel> getPendingUsers() {
         return userRepository.findAllByIsApprovedFalse();
     }
 
-    // Approves a customer and creates their checking and savings accounts.
     @Transactional
     public void approveUser(Long userId) {
         UserModel user = userRepository.findById(userId)
@@ -60,12 +57,11 @@ public class UserService {
         user.setIsApproved(true);
         CustomerProfileModel profile = createCustomerProfile(user);
         AccountModel checkingAccount = createAccount(profile, AccountTypeEnum.CHECKING, new BigDecimal("1000.00"));
-        createAccount(profile, AccountTypeEnum.SAVINGS, new BigDecimal("0.00"));
+        createAccount(profile, AccountTypeEnum.SAVINGS, BigDecimal.ZERO);
         user.setIban(checkingAccount.getIban());
         userRepository.save(user);
     }
 
-    // Deletes a pending user after an employee denies registration.
     public void denyUser(Long userId) {
         if (!userRepository.existsById(userId)) {
             throw new EntityNotFoundException("User not found with id: " + userId);
