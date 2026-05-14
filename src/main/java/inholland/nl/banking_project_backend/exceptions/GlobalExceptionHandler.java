@@ -3,6 +3,7 @@ package inholland.nl.banking_project_backend.exceptions;
 import inholland.nl.banking_project_backend.dtos.ErrorResponseDTO;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.validation.FieldError;
@@ -60,7 +61,7 @@ public class GlobalExceptionHandler {
 
     // handles authentication failures (invalid email/password)
     @ExceptionHandler(BadCredentialsException.class)
-    public ResponseEntity<ErrorResponseDTO> handleBadCredentials(BadCredentialsException ex) {
+    public ResponseEntity<ErrorResponseDTO> handleBadCredentials(BadCredentialsException ignored) {
         ErrorResponseDTO error = new ErrorResponseDTO(
                 HttpStatus.UNAUTHORIZED.value(),
                 "Invalid email or password.",
@@ -96,11 +97,11 @@ public class GlobalExceptionHandler {
     // handles absolute and daily limit errors
     @ExceptionHandler({AbsoluteLimitExceededException.class, DailyLimitExceededException.class})
     public ResponseEntity<ErrorResponseDTO> handleLimitExceeded(RuntimeException ex) {
-        return buildError(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
+        return buildError(HttpStatusCode.valueOf(422), ex.getMessage());
     }
 
     // creates the shared error response body for service-layer exceptions
-    private ResponseEntity<ErrorResponseDTO> buildError(HttpStatus status, String message) {
+    private ResponseEntity<ErrorResponseDTO> buildError(HttpStatusCode status, String message) {
         ErrorResponseDTO error = new ErrorResponseDTO(status.value(), message, LocalDateTime.now());
         return new ResponseEntity<>(error, status);
     }

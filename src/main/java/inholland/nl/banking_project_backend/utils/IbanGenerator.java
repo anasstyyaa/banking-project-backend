@@ -17,7 +17,7 @@ public class IbanGenerator {
             accountNumber.append(random.nextInt(10));
         }
 
-        String partialIban = BANK_CODE + accountNumber.toString();
+        String partialIban = BANK_CODE + accountNumber;
 
         // formula: 98 - (numeric_representation % 97)
         String checkDigits = calculateCheckDigits(partialIban);
