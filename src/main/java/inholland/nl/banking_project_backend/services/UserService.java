@@ -11,21 +11,30 @@ import inholland.nl.banking_project_backend.utils.IbanGenerator;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.util.List;
 
-
 @Service
 @RequiredArgsConstructor
-public class UserService {
+public class UserService implements UserDetailsService {
+
     private final UserRepository userRepository;
     private final CustomerProfileRepository customerProfileRepository;
     private final AccountRepository accountRepository;
     private final IbanGenerator ibanGenerator;
     private final PasswordEncoder passwordEncoder;
+
+    @Override
+    public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + email));
+    }
 
     public UserModel create(UserModel user) {
         return userRepository.save(user);
@@ -34,7 +43,6 @@ public class UserService {
     public UserModel findByEmail(String email) {
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new EntityNotFoundException("User not found with email: " + email));
-
     }
 
     public boolean existsByEmail(String email) {

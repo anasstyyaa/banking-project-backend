@@ -1,4 +1,5 @@
 package inholland.nl.banking_project_backend.security;
+import inholland.nl.banking_project_backend.services.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -13,6 +14,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
@@ -29,6 +31,8 @@ import static org.springframework.security.config.Customizer.withDefaults;
 public class SecurityConfig {
 
     private final JWTFilter jwtFilter;
+    private final UserService userService;
+
 
     @Bean
     public BCryptPasswordEncoder passwordEncoder() {
@@ -41,9 +45,9 @@ public class SecurityConfig {
     }
 
     @Bean
-    public AuthenticationProvider authenticationProvider(UserDetailsService userDetailsService) {
-        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider(userDetailsService);
-        authProvider.setPasswordEncoder(this.passwordEncoder());
+    public DaoAuthenticationProvider authenticationProvider(PasswordEncoder passwordEncoder) {
+        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider(userService);
+        authProvider.setPasswordEncoder(passwordEncoder);
         return authProvider;
     }
 
@@ -58,6 +62,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/v1/auth/**").permitAll()
+                        .requestMatchers("/api/v1/auth/me").authenticated()
                         .requestMatchers("/h2-console/**").permitAll()
                         .requestMatchers("/api/v1/employee/**").hasRole("EMPLOYEE")
                         .requestMatchers("/error").permitAll()
