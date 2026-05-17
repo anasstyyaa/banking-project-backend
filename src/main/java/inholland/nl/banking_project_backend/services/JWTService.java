@@ -1,14 +1,12 @@
 package inholland.nl.banking_project_backend.services;
 
 import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwt;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.Date;
 import java.util.HashMap;
@@ -36,10 +34,6 @@ public class JWTService {
 
     public String extractEmail(String token) {
         return extractClaim(token, Claims::getSubject);
-    }
-
-    public String extractRole(String token) {
-        return extractAllClaims(token).get("role", String.class);
     }
 
     public boolean isTokenValid(String token, String email) {
