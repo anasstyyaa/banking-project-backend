@@ -101,4 +101,14 @@ public class AccountService {
             throw new UnauthorizedAccountAccessException("You are not allowed to use this account.");
         }
     }
+
+    // search iban by name
+    public List<AccountDTO.AccountResponse> searchAccountsByName(String name) {
+        return accountRepository
+                .findByCustomerUserFirstNameContainingIgnoreCaseOrCustomerUserLastNameContainingIgnoreCase(name, name)
+                .stream()
+                .filter(a -> Boolean.TRUE.equals(a.getIsActive()))
+                .map(accountMapper::toResponse)
+                .toList();
+    }
 }

@@ -14,4 +14,8 @@ public interface AccountRepository extends JpaRepository<AccountModel, Long> {
 
     // Finds all accounts owned by the customer with this user email.
     List<AccountModel> findByCustomerUserEmail(String email);
+
+    // find customer iban by name
+    List<AccountModel> findByCustomerUserFirstNameContainingIgnoreCaseOrCustomerUserLastNameContainingIgnoreCase(String firstName, String lastName);
+
 }
