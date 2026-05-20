@@ -12,14 +12,18 @@ import inholland.nl.banking_project_backend.repositories.CustomerProfileReposito
 import inholland.nl.banking_project_backend.repositories.TransactionRepository;
 import inholland.nl.banking_project_backend.repositories.UserRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.boot.CommandLineRunner;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.ApplicationArguments;
+import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+@Slf4j
 @Configuration
 @RequiredArgsConstructor
 public class DatabaseSeeder {
@@ -27,32 +31,43 @@ public class DatabaseSeeder {
     private final CustomerProfileRepository customerProfileRepository;
     private final AccountRepository accountRepository;
     private final TransactionRepository transactionRepository;
-    private final BCryptPasswordEncoder passwordEncoder;
+    private final PasswordEncoder passwordEncoder;
 
-    // Seeds demo users, accounts, and transactions when the database is empty.
     @Bean
-    CommandLineRunner commandLineRunner() {
+    ApplicationRunner applicationRunner() {
         return args -> {
+            if (args.containsOption("skip-seed")) {
+                log.info("Database seeding skipped via '--skip-seed' application flag.");
+                return;
+            }
+
             if (userRepository.count() == 0) {
+                log.info("Database is empty. Initiating professional demo banking dataset...");
                 seedDemoData();
+                log.info("Demo database seeding completed successfully.");
+            } else {
+                log.info("Database already contains data. Seeding bypassed.");
             }
         };
     }
 
-    // Creates a complete demo banking setup for local development.
     private void seedDemoData() {
         UserModel employee = createUser("admin@inhollandbank.nl", "Admin123!", "Bank", "Manager", "997654321", "+31612345678", RoleEnum.ROLE_EMPLOYEE);
         UserModel firstCustomer = createUser("testuser@gmail.com", "User123!", "Testy", "McTestFace", "987654321", "+31612345688", RoleEnum.ROLE_CUSTOMER);
         UserModel secondCustomer = createUser("jane.customer@gmail.com", "User123!", "Jane", "Customer", "987654322", "+31612345689", RoleEnum.ROLE_CUSTOMER);
+
         CustomerProfileModel firstProfile = createProfile(firstCustomer);
         CustomerProfileModel secondProfile = createProfile(secondCustomer);
+
         AccountModel firstChecking = createAccount(firstProfile, "NL01INHO000000001", AccountTypeEnum.CHECKING, "1250.00", "-500.00", "1000.00");
         AccountModel firstSavings = createAccount(firstProfile, "NL01INHO000000002", AccountTypeEnum.SAVINGS, "2500.00", "0.00", "750.00");
         AccountModel secondChecking = createAccount(secondProfile, "NL01INHO000000003", AccountTypeEnum.CHECKING, "800.00", "-250.00", "700.00");
+
         firstCustomer.setIban(firstChecking.getIban());
         secondCustomer.setIban(secondChecking.getIban());
         userRepository.save(firstCustomer);
         userRepository.save(secondCustomer);
+
         createTransaction(TransactionTypeEnum.DEPOSIT, null, firstChecking, "250.00", firstCustomer);
         createTransaction(TransactionTypeEnum.TRANSFER, firstChecking, secondChecking, "75.00", firstCustomer);
         createTransaction(TransactionTypeEnum.WITHDRAWAL, firstChecking, null, "40.00", firstCustomer);
