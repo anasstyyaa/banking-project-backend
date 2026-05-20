@@ -28,7 +28,6 @@ public class UserService implements UserDetailsService {
     private final CustomerProfileRepository customerProfileRepository;
     private final AccountRepository accountRepository;
     private final IbanGenerator ibanGenerator;
-    private final PasswordEncoder passwordEncoder;
 
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
