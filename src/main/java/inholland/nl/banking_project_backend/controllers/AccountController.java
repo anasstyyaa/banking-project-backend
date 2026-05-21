@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import java.security.Principal;
 import java.util.List;
@@ -32,5 +33,12 @@ public class AccountController {
     @GetMapping("/{iban}")
     public AccountDTO.AccountResponse getAccount(@PathVariable String iban, Principal principal) {
         return accountService.getAccountForUser(iban, principal.getName());
+    }
+
+    // search accounts by name
+    @Operation(summary = "Search accounts by customer name")
+    @GetMapping("/search")
+    public List<AccountDTO.AccountResponse> searchAccounts(@RequestParam String name) {
+        return accountService.searchAccountsByName(name);
     }
 }
