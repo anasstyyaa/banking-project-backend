@@ -11,6 +11,7 @@ import inholland.nl.banking_project_backend.utils.IbanGenerator;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -20,6 +21,7 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class UserService implements UserDetailsService {
@@ -66,6 +68,8 @@ public class UserService implements UserDetailsService {
         AccountModel checkingAccount = createAccount(profile, AccountTypeEnum.CHECKING, new BigDecimal("1000.00"));
         createAccount(profile, AccountTypeEnum.SAVINGS, BigDecimal.ZERO);
         user.setIban(checkingAccount.getIban());
+
+        log.info("Employee approved User ID: {}. Profile, Checking and Savings accounts created.", userId);
         userRepository.save(user);
     }
 
@@ -73,16 +77,16 @@ public class UserService implements UserDetailsService {
         if (!userRepository.existsById(userId)) {
             throw new EntityNotFoundException("User not found with id: " + userId);
         }
+
+        log.info("Employee denied registration for User ID: {}. Removing record.", userId);
         userRepository.deleteById(userId);
     }
 
-    // Creates or reuses the customer profile linked to a user.
     private CustomerProfileModel createCustomerProfile(UserModel user) {
         return customerProfileRepository.findByUserEmail(user.getEmail())
                 .orElseGet(() -> saveCustomerProfile(user));
     }
-
-    // Saves a customer profile for the approved user.
+    
     private CustomerProfileModel saveCustomerProfile(UserModel user) {
         CustomerProfileModel profile = new CustomerProfileModel();
         profile.setUser(user);
