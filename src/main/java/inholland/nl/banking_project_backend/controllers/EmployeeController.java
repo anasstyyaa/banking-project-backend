@@ -28,6 +28,11 @@ public class EmployeeController {
         );
     }
 
+    @GetMapping("/active-customers")
+    public ResponseEntity<List<UserModel>> getActiveCustomers() {
+        return ResponseEntity.ok(userService.getActiveUsers());
+    }
+
     @PostMapping("/approve/{id}")
     public ResponseEntity<Void> approveUser(@PathVariable Long id) {
         userService.approveUser(id);

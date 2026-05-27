@@ -54,6 +54,10 @@ public class UserService implements UserDetailsService {
         return userRepository.findAllByIsApprovedFalse();
     }
 
+    public List<UserModel> getActiveUsers() {
+        return userRepository.findAllByIsApprovedTrue();
+    }
+
     @Transactional
     public void approveUser(Long userId) {
         UserModel user = userRepository.findById(userId)
