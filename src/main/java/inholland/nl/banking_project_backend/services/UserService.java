@@ -58,23 +58,27 @@ public class UserService implements UserDetailsService {
         return userRepository.findAllByIsApprovedTrue();
     }
 
-    @Transactional
+    @Transactional(rollbackOn = Exception.class)
     public void approveUser(Long userId) {
         UserModel user = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("User not found with id: " + userId));
 
-        if (user.getIsApproved()) {
-            return;
-        }
-
+        if (user.getIsApproved()) return;
         user.setIsApproved(true);
-        CustomerProfileModel profile = createCustomerProfile(user);
-        AccountModel checkingAccount = createAccount(profile, AccountTypeEnum.CHECKING, new BigDecimal("1000.00"));
-        createAccount(profile, AccountTypeEnum.SAVINGS, BigDecimal.ZERO);
-        user.setIban(checkingAccount.getIban());
 
-        log.info("Employee approved User ID: {}. Profile, Checking and Savings accounts created.", userId);
+        CustomerProfileModel profile = customerProfileRepository.findByUserEmail(user.getEmail())
+                .orElseGet(() -> {
+                    CustomerProfileModel newProfile = new CustomerProfileModel();
+                    newProfile.setUser(user);
+                    return customerProfileRepository.save(newProfile);
+                });
+
+        AccountModel checking = createAccount(profile, AccountTypeEnum.CHECKING, new BigDecimal("1000.00"));
+        createAccount(profile, AccountTypeEnum.SAVINGS, BigDecimal.ZERO);
+        user.setIban(checking.getIban());
         userRepository.save(user);
+
+        log.info("Successfully provisioned checking/savings portfolio for User ID: {}", userId);
     }
 
     public void denyUser(Long userId) {
