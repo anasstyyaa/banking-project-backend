@@ -2,6 +2,8 @@ package inholland.nl.banking_project_backend.repositories;
 
 import inholland.nl.banking_project_backend.models.AccountModel;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -18,4 +20,8 @@ public interface AccountRepository extends JpaRepository<AccountModel, Long> {
     // find customer iban by name
     List<AccountModel> findByCustomerUserFirstNameContainingIgnoreCaseOrCustomerUserLastNameContainingIgnoreCase(String firstName, String lastName);
 
+    @Query("SELECT a FROM AccountModel a WHERE " +
+            "LOWER(a.customer.user.firstName) LIKE LOWER(CONCAT('%', :name, '%')) OR " +
+            "LOWER(a.customer.user.lastName) LIKE LOWER(CONCAT('%', :name, '%'))")
+    List<AccountModel> searchByCustomerName(@Param("name") String name);
 }

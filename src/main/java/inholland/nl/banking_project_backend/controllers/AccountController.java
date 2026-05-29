@@ -5,6 +5,7 @@ import inholland.nl.banking_project_backend.services.AccountService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -21,18 +22,17 @@ import java.util.List;
 public class AccountController {
     private final AccountService accountService;
 
-    // Returns accounts visible to the authenticated user.
+
     @Operation(summary = "Get visible accounts", description = "Returns own accounts for customers and all accounts for employees.")
     @GetMapping
-    public List<AccountDTO.AccountResponse> getAccounts(Principal principal) {
-        return accountService.getAccountsForUser(principal.getName());
+    public ResponseEntity<List<AccountDTO.AccountResponse>> getAccounts(Principal principal) {
+        return ResponseEntity.ok(accountService.getAccountsForUser(principal.getName()));
     }
 
-    // Returns one account when the authenticated user may view it.
     @Operation(summary = "Get account by IBAN", description = "Returns one account if the authenticated user has access.")
     @GetMapping("/{iban}")
-    public AccountDTO.AccountResponse getAccount(@PathVariable String iban, Principal principal) {
-        return accountService.getAccountForUser(iban, principal.getName());
+    public ResponseEntity<AccountDTO.AccountResponse> getAccount(@PathVariable String iban, Principal principal) {
+        return ResponseEntity.ok(accountService.getAccountForUser(iban, principal.getName()));
     }
 
     // search accounts by name
@@ -41,4 +41,6 @@ public class AccountController {
     public List<AccountDTO.AccountResponse> searchAccounts(@RequestParam String name) {
         return accountService.searchAccountsByName(name);
     }
+
+
 }
