@@ -1,15 +1,11 @@
 package inholland.nl.banking_project_backend.services;
 
 import inholland.nl.banking_project_backend.dtos.AccountDTO;
-import inholland.nl.banking_project_backend.enums.AccountTypeEnum;
+import inholland.nl.banking_project_backend.exceptions.AccountNotFoundException;
 import inholland.nl.banking_project_backend.mappers.AccountMapper;
 import inholland.nl.banking_project_backend.models.AccountModel;
 import inholland.nl.banking_project_backend.models.CustomerProfileModel;
-import inholland.nl.banking_project_backend.models.RoleEnum;
 import inholland.nl.banking_project_backend.models.UserModel;
-import inholland.nl.banking_project_backend.exceptions.AccountNotFoundException;
-import inholland.nl.banking_project_backend.exceptions.InactiveAccountException;
-import inholland.nl.banking_project_backend.exceptions.UnauthorizedAccountAccessException;
 import inholland.nl.banking_project_backend.repositories.AccountRepository;
 import inholland.nl.banking_project_backend.repositories.CustomerProfileRepository;
 import inholland.nl.banking_project_backend.repositories.UserRepository;
@@ -30,123 +26,85 @@ public class AccountService {
     private final AccountRepository accountRepository;
     private final UserRepository userRepository;
     private final AccountMapper accountMapper;
-    private final UserService userService;
-    private final IbanGenerator idanGenerator;
+    private final IbanGenerator ibanGenerator;
     private final CustomerProfileRepository customerProfileRepository;
 
+    // Creates an additional active account for an approved customer with employee-defined limits.
     @Transactional(rollbackOn = Exception.class)
-    public AccountDTO.AccountResponse createAdditionalAccount(Long userId, AccountTypeEnum type) {
+    public AccountDTO.AccountResponse createAdditionalAccount(Long userId, AccountDTO.AccountCreationRequest request) {
         UserModel user = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("User not found with id: " + userId));
 
-        if (!user.getIsApproved()) {
-            throw new IllegalStateException("Cannot open portfolios for unapproved banking registration records.");
+        if (!Boolean.TRUE.equals(user.getIsApproved())) {
+            throw new IllegalStateException("Cannot open accounts for an unapproved customer.");
         }
 
         CustomerProfileModel profile = customerProfileRepository.findByUserEmail(user.getEmail())
-                .orElseThrow(() -> new EntityNotFoundException("Customer financial profile context data missing."));
+                .orElseThrow(() -> new EntityNotFoundException("Customer profile not found."));
 
         AccountModel account = new AccountModel();
         account.setCustomer(profile);
-        account.setIban(idanGenerator.generateDutchIban());
-        account.setType(type);
+        account.setIban(ibanGenerator.generateDutchIban());
+        account.setType(request.accountType());
         account.setBalance(BigDecimal.ZERO);
-        account.setAbsoluteLimit(new BigDecimal("-500.00"));
-        account.setDailyLimit(new BigDecimal("1000.00"));
+        account.setAbsoluteLimit(request.absoluteLimit());
+        account.setDailyLimit(request.dailyLimit());
         account.setIsActive(true);
 
         AccountModel savedAccount = accountRepository.save(account);
-        log.info("Provisioned a secondary {} account for customer user identity ID: {}", type, userId);
+        log.info("Created {} account for customer user ID: {}", request.accountType(), userId);
         return accountMapper.toResponse(savedAccount);
     }
 
-    // Returns all accounts visible to the authenticated user.
-    public List<AccountDTO.AccountResponse> getAccountsForUser(String userEmail) {
-        UserModel user = userService.findByEmail(userEmail);
-        return getVisibleAccounts(user).stream()
+    // Returns all active accounts for employee account management.
+    public List<AccountDTO.AccountResponse> getAllAccounts() {
+        return accountRepository.findByIsActiveTrue()
+                .stream()
                 .map(accountMapper::toResponse)
                 .toList();
     }
 
-    // Returns one account only when the user is allowed to view it.
-    public AccountDTO.AccountResponse getAccountForUser(String iban, String userEmail) {
-        UserModel user = userService.findByEmail(userEmail);
-        AccountModel account = getActiveAccount(iban);
-        validateCanViewAccount(user, account);
+    // Returns active accounts owned by one customer.
+    public List<AccountDTO.AccountResponse> getAccountsByCustomerEmail(String email) {
+        return accountRepository.findByCustomerUserEmailAndIsActiveTrue(email)
+                .stream()
+                .map(accountMapper::toResponse)
+                .toList();
+    }
+
+    // Returns one active account by IBAN for employee account management.
+    public AccountDTO.AccountResponse getAccountByIban(String iban) {
+        AccountModel account = findActiveAccount(iban);
         return accountMapper.toResponse(account);
     }
 
-    // Loads an active account by IBAN for service-layer business operations.
-    public AccountModel getActiveAccount(String iban) {
-        AccountModel account = findByIban(iban);
-        validateAccountIsActive(account);
-        return account;
-    }
-
-    // Verifies that the user may use this account in a protected operation.
-    public void validateCanUseAccount(UserModel user, AccountModel account) {
-        validateCanViewAccount(user, account);
-    }
-
-    // Subtracts money from an account in memory.
-    public void debit(AccountModel account, BigDecimal amount) {
-        account.setBalance(account.getBalance().subtract(amount));
-    }
-
-    // Adds money to an account in memory.
-    public void credit(AccountModel account, BigDecimal amount) {
-        account.setBalance(account.getBalance().add(amount));
-    }
-
-    // Persists a changed account.
-    public AccountModel save(AccountModel account) {
-        return accountRepository.save(account);
-    }
-
-    // Returns all accounts for employees and own accounts for customers.
-    private List<AccountModel> getVisibleAccounts(UserModel user) {
-        if (user.getRole() == RoleEnum.ROLE_EMPLOYEE) {
-            return accountRepository.findAll();
-        }
-        return accountRepository.findByCustomerUserEmail(user.getEmail());
-    }
-
-    // Loads an account by IBAN or throws a clean business error.
-    private AccountModel findByIban(String iban) {
-        return accountRepository.findByIban(iban)
+    // Returns one active customer-owned account by IBAN.
+    public AccountDTO.AccountResponse getCustomerAccountByIban(String iban, String email) {
+        AccountModel account = accountRepository.findByIbanAndCustomerUserEmailAndIsActiveTrue(iban, email)
                 .orElseThrow(() -> new AccountNotFoundException("Account not found."));
+        return accountMapper.toResponse(account);
     }
 
-    // Rejects operations against closed or inactive accounts.
-    private void validateAccountIsActive(AccountModel account) {
-        if (!Boolean.TRUE.equals(account.getIsActive())) {
-            throw new InactiveAccountException("This account is inactive.");
-        }
+    // Updates employee-managed transaction limits for one active account.
+    @Transactional
+    public AccountDTO.AccountResponse updateLimits(String iban, AccountDTO.UpdateLimitsRequest request) {
+        AccountModel account = findActiveAccount(iban);
+        account.setAbsoluteLimit(request.absoluteLimit());
+        account.setDailyLimit(request.dailyLimit());
+        return accountMapper.toResponse(accountRepository.save(account));
     }
 
-    // Allows employees to view all accounts and customers to view only their own.
-    private void validateCanViewAccount(UserModel user, AccountModel account) {
-        if (user.getRole() == RoleEnum.ROLE_EMPLOYEE) {
-            return;
-        }
-        validateCustomerOwnsAccount(user, account);
-    }
-
-    // Rejects customer access to accounts owned by another customer.
-    private void validateCustomerOwnsAccount(UserModel user, AccountModel account) {
-        String ownerEmail = account.getCustomer().getUser().getEmail();
-        if (!ownerEmail.equals(user.getEmail())) {
-            throw new UnauthorizedAccountAccessException("You are not allowed to use this account.");
-        }
-    }
-
-    // search iban by name
-    public List<AccountDTO.AccountResponse> searchAccountsByName(String name) {
-        return accountRepository
-                .findByCustomerUserFirstNameContainingIgnoreCaseOrCustomerUserLastNameContainingIgnoreCase(name, name)
+    // Searches active accounts with a lightweight response for IBAN lookup.
+    public List<AccountDTO.AccountSearchResponse> searchAccounts(String term) {
+        return accountRepository.searchActiveAccounts(term)
                 .stream()
-                .filter(a -> Boolean.TRUE.equals(a.getIsActive()))
-                .map(accountMapper::toResponse)
+                .map(accountMapper::toSearchResponse)
                 .toList();
+    }
+
+    // Loads one active account or raises a clear account error.
+    private AccountModel findActiveAccount(String iban) {
+        return accountRepository.findByIbanAndIsActiveTrue(iban)
+                .orElseThrow(() -> new AccountNotFoundException("Account not found."));
     }
 }

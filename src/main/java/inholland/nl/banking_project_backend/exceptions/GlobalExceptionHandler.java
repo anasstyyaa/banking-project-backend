@@ -13,28 +13,20 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
     // handles validation errors (@NotBlank, @Email, @Size)
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<Map<String, Object>> handleValidationExceptions(MethodArgumentNotValidException ex) {
-        Map<String, String> errors = new HashMap<>();
-        ex.getBindingResult().getAllErrors().forEach((error) -> {
-            String fieldName = ((FieldError) error).getField();
-            String errorMessage = error.getDefaultMessage();
-            errors.put(fieldName, errorMessage);
-        });
+    public ResponseEntity<ErrorResponseDTO> handleValidationExceptions(MethodArgumentNotValidException ex) {
+        String message = ex.getBindingResult().getFieldErrors()
+                .stream()
+                .map(this::formatFieldError)
+                .collect(Collectors.joining("; "));
 
-        Map<String, Object> response = new HashMap<>();
-        response.put("status", HttpStatus.BAD_REQUEST.value());
-        response.put("errors", errors);
-        response.put("timestamp", LocalDateTime.now());
-
-        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+        return buildError(HttpStatus.BAD_REQUEST, message);
     }
 
     // handles custom business logic
@@ -94,6 +86,12 @@ public class GlobalExceptionHandler {
         return buildError(HttpStatus.BAD_REQUEST, ex.getMessage());
     }
 
+    // handles invalid account state changes
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<ErrorResponseDTO> handleIllegalState(IllegalStateException ex) {
+        return buildError(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
     // handles absolute and daily limit errors
     @ExceptionHandler({AbsoluteLimitExceededException.class, DailyLimitExceededException.class})
     public ResponseEntity<ErrorResponseDTO> handleLimitExceeded(RuntimeException ex) {
@@ -104,5 +102,10 @@ public class GlobalExceptionHandler {
     private ResponseEntity<ErrorResponseDTO> buildError(HttpStatusCode status, String message) {
         ErrorResponseDTO error = new ErrorResponseDTO(status.value(), message, LocalDateTime.now());
         return new ResponseEntity<>(error, status);
+    }
+
+    // Formats one validation error for the shared error response message.
+    private String formatFieldError(FieldError error) {
+        return error.getField() + ": " + error.getDefaultMessage();
     }
 }

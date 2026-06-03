@@ -1,18 +1,24 @@
 package inholland.nl.banking_project_backend.controllers;
 
 import inholland.nl.banking_project_backend.dtos.AccountDTO;
+import inholland.nl.banking_project_backend.models.RoleEnum;
+import inholland.nl.banking_project_backend.models.UserModel;
 import inholland.nl.banking_project_backend.services.AccountService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
-import java.security.Principal;
 import java.util.List;
 
 @RestController
@@ -22,25 +28,49 @@ import java.util.List;
 public class AccountController {
     private final AccountService accountService;
 
-
-    @Operation(summary = "Get visible accounts", description = "Returns own accounts for customers and all accounts for employees.")
+    // Returns active accounts visible to the authenticated user.
+    @Operation(summary = "Get visible accounts", description = "Returns own accounts for customers and all active accounts for employees.")
     @GetMapping
-    public ResponseEntity<List<AccountDTO.AccountResponse>> getAccounts(Principal principal) {
-        return ResponseEntity.ok(accountService.getAccountsForUser(principal.getName()));
+    public ResponseEntity<List<AccountDTO.AccountResponse>> getAccounts(@AuthenticationPrincipal UserModel currentUser) {
+        if (isEmployee(currentUser)) {
+            return ResponseEntity.ok(accountService.getAllAccounts());
+        }
+        return ResponseEntity.ok(accountService.getAccountsByCustomerEmail(currentUser.getEmail()));
     }
 
+    // Returns one active account visible to the authenticated user.
     @Operation(summary = "Get account by IBAN", description = "Returns one account if the authenticated user has access.")
     @GetMapping("/{iban}")
-    public ResponseEntity<AccountDTO.AccountResponse> getAccount(@PathVariable String iban, Principal principal) {
-        return ResponseEntity.ok(accountService.getAccountForUser(iban, principal.getName()));
+    public ResponseEntity<AccountDTO.AccountResponse> getAccount(
+            @PathVariable String iban,
+            @AuthenticationPrincipal UserModel currentUser
+    ) {
+        if (isEmployee(currentUser)) {
+            return ResponseEntity.ok(accountService.getAccountByIban(iban));
+        }
+        return ResponseEntity.ok(accountService.getCustomerAccountByIban(iban, currentUser.getEmail()));
     }
 
-    // search accounts by name
-    @Operation(summary = "Search accounts by customer name")
+    // Searches active accounts with a lightweight IBAN lookup response.
+    @Operation(summary = "Search accounts", description = "Searches active accounts by customer name or IBAN.")
     @GetMapping("/search")
-    public List<AccountDTO.AccountResponse> searchAccounts(@RequestParam String name) {
-        return accountService.searchAccountsByName(name);
+    public ResponseEntity<List<AccountDTO.AccountSearchResponse>> searchAccounts(@RequestParam String query) {
+        return ResponseEntity.ok(accountService.searchAccounts(query));
     }
 
+    // Updates absolute and daily transfer limits for an active account.
+    @Operation(summary = "Update account limits", description = "Allows an employee to update absolute and daily transfer limits.")
+    @PatchMapping("/{iban}/limits")
+    @PreAuthorize("hasRole('EMPLOYEE')")
+    public ResponseEntity<AccountDTO.AccountResponse> updateLimits(
+            @PathVariable String iban,
+            @Valid @RequestBody AccountDTO.UpdateLimitsRequest request
+    ) {
+        return ResponseEntity.ok(accountService.updateLimits(iban, request));
+    }
 
+    // Checks whether the authenticated user has the employee role.
+    private boolean isEmployee(UserModel user) {
+        return user.getRole() == RoleEnum.ROLE_EMPLOYEE;
+    }
 }
