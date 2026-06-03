@@ -39,10 +39,11 @@ public class TransactionController {
             @RequestParam(required = false) BigDecimal amountGreaterThan,
             @RequestParam(required = false) BigDecimal amountEqualTo,
             @RequestParam(required = false) String iban,
+            @RequestParam(required = false) Long userId,
             Principal principal
     ) {
         TransactionDTO.FilterRequest filter = new TransactionDTO.FilterRequest(
-                startDate, endDate, amountLessThan, amountGreaterThan, amountEqualTo, iban
+                startDate, endDate, amountLessThan, amountGreaterThan, amountEqualTo, iban, userId
         );
         return transactionService.getTransactions(filter, principal.getName());
     }

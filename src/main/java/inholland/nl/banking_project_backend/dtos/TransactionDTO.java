@@ -22,7 +22,8 @@ public class TransactionDTO {
             BigDecimal amountLessThan,
             BigDecimal amountGreaterThan,
             BigDecimal amountEqualTo,
-            String iban
+            String iban,
+            Long userId
     ) {}
 
     public record TransactionResponse(
