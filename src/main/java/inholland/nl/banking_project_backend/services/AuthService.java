@@ -4,13 +4,17 @@ import inholland.nl.banking_project_backend.dtos.UserDTO;
 import inholland.nl.banking_project_backend.mappers.UserMapper;
 import inholland.nl.banking_project_backend.models.UserModel;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuthService {
@@ -30,11 +34,10 @@ public class AuthService {
         newUser.setPassword(passwordEncoder.encode(dto.password()));
 
         UserModel savedUser = userService.create(newUser);
+        log.info("New registration request submitted for email: {}. Status: PENDING", savedUser.getEmail());
 
-        String token = jwtService.generateToken(
-                savedUser.getEmail(),
-                savedUser.getRole().name()
-        );
+        // generating a tentative token for registration context tracking, but users cannot use it on secured endpoints because loadUserByUsername will reject them
+        String token = jwtService.generateToken(savedUser.getEmail(), savedUser.getRole().name());
 
         return new UserDTO.LoginResponse(
                 savedUser.getEmail(),
@@ -44,12 +47,19 @@ public class AuthService {
     }
 
     public UserDTO.LoginResponse login(UserDTO.LoginRequest dto) {
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        dto.email(),
-                        dto.password()
-                )
-        );
+        try {
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(
+                            dto.email(),
+                            dto.password()
+                    )
+            );
+        } catch (DisabledException e) {
+            log.warn("Login blocked: Account '{}' is pending employee approval.", dto.email());
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "ACCOUNT_PENDING_APPROVAL");
+        } catch (BadCredentialsException e) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid email or password");
+        }
 
         UserModel user = userService.findByEmail(dto.email());
 
