@@ -3,6 +3,7 @@ package inholland.nl.banking_project_backend.utils;
 import org.springframework.stereotype.Component;
 import java.math.BigInteger;
 import java.util.Random;
+import java.util.function.Predicate;
 
 @Component
 public class IbanGenerator {
@@ -22,6 +23,21 @@ public class IbanGenerator {
         // formula: 98 - (numeric_representation % 97)
         String checkDigits = calculateCheckDigits(partialIban);
         return COUNTRY_CODE + checkDigits + partialIban;
+    }
+
+    public String generateUniqueDutchIban(Predicate<String> isDuplicate) {
+        String iban;
+        int attempts = 0;
+
+        do {
+            iban = generateDutchIban();
+            attempts++;
+            if (attempts > 100) {
+                throw new IllegalStateException("Could not generate a unique IBAN after 100 attempts. Check database capacity.");
+            }
+        } while (isDuplicate.test(iban));
+
+        return iban;
     }
 
     private String calculateCheckDigits(String partialIban) {

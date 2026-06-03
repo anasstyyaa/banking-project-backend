@@ -50,6 +50,7 @@ public class TransactionService {
                 .filter(transaction -> canViewTransaction(user, transaction))
                 .filter(transaction -> matchesAmountFilters(transaction, filter))
                 .filter(transaction -> matchesIbanFilter(transaction, filter.iban()))
+                .filter(transaction -> matchesUserFilter(transaction, filter.userId()))
                 .map(transactionMapper::toResponse)
                 .toList();
     }
@@ -275,5 +276,15 @@ public class TransactionService {
     // Checks whether text is missing or only whitespace.
     private boolean isBlank(String value) {
         return value == null || value.isBlank();
+    }
+
+    private boolean matchesUserFilter(TransactionModel transaction, Long userId) {
+        if (userId == null) return true;
+        return ownsAccount(userId, transaction.getFromAccount())
+                || ownsAccount(userId, transaction.getToAccount());
+    }
+
+    private boolean ownsAccount(Long userId, AccountModel account) {
+        return account != null && account.getCustomer().getUser().getId().equals(userId);
     }
 }

@@ -11,6 +11,7 @@ import inholland.nl.banking_project_backend.utils.IbanGenerator;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -20,6 +21,7 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class UserService implements UserDetailsService {
@@ -52,37 +54,47 @@ public class UserService implements UserDetailsService {
         return userRepository.findAllByIsApprovedFalse();
     }
 
-    @Transactional
+    public List<UserModel> getActiveUsers() {
+        return userRepository.findAllByIsApprovedTrue();
+    }
+
+    @Transactional(rollbackOn = Exception.class)
     public void approveUser(Long userId) {
         UserModel user = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("User not found with id: " + userId));
 
-        if (user.getIsApproved()) {
-            return;
-        }
-
+        if (user.getIsApproved()) return;
         user.setIsApproved(true);
-        CustomerProfileModel profile = createCustomerProfile(user);
-        AccountModel checkingAccount = createAccount(profile, AccountTypeEnum.CHECKING, new BigDecimal("1000.00"));
+
+        CustomerProfileModel profile = customerProfileRepository.findByUserEmail(user.getEmail())
+                .orElseGet(() -> {
+                    CustomerProfileModel newProfile = new CustomerProfileModel();
+                    newProfile.setUser(user);
+                    return customerProfileRepository.save(newProfile);
+                });
+
+        AccountModel checking = createAccount(profile, AccountTypeEnum.CHECKING, new BigDecimal("1000.00"));
         createAccount(profile, AccountTypeEnum.SAVINGS, BigDecimal.ZERO);
-        user.setIban(checkingAccount.getIban());
+        user.setIban(checking.getIban());
         userRepository.save(user);
+
+        log.info("Successfully provisioned checking/savings portfolio for User ID: {}", userId);
     }
 
     public void denyUser(Long userId) {
         if (!userRepository.existsById(userId)) {
             throw new EntityNotFoundException("User not found with id: " + userId);
         }
+
+        log.info("Employee denied registration for User ID: {}. Removing record.", userId);
         userRepository.deleteById(userId);
     }
 
-    // Creates or reuses the customer profile linked to a user.
     private CustomerProfileModel createCustomerProfile(UserModel user) {
         return customerProfileRepository.findByUserEmail(user.getEmail())
                 .orElseGet(() -> saveCustomerProfile(user));
     }
-
-    // Saves a customer profile for the approved user.
+    
     private CustomerProfileModel saveCustomerProfile(UserModel user) {
         CustomerProfileModel profile = new CustomerProfileModel();
         profile.setUser(user);
