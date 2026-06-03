@@ -15,4 +15,8 @@ public class AccountDTO {
             String customerEmail,
             String customerName
     ) {}
+
+    public record AccountCreationRequest(
+            String accountType
+    ) {}
 }
