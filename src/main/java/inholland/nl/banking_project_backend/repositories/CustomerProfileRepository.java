@@ -8,6 +8,5 @@ import java.util.Optional;
 
 @Repository
 public interface CustomerProfileRepository extends JpaRepository<CustomerProfileModel, Long> {
-    // Finds a customer profile by the linked user's email address.
     Optional<CustomerProfileModel> findByUserEmail(String email);
 }
