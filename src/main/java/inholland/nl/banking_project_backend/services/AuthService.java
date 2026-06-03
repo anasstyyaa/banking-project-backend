@@ -1,33 +1,42 @@
 package inholland.nl.banking_project_backend.services;
 
 import inholland.nl.banking_project_backend.dtos.UserDTO;
-import inholland.nl.banking_project_backend.models.RoleEnum;
+import inholland.nl.banking_project_backend.mappers.UserMapper;
 import inholland.nl.banking_project_backend.models.UserModel;
-import inholland.nl.banking_project_backend.services.UserSerivce;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuthService {
-    private final UserSerivce userService;
+
+    private final UserService userService;
+    private final UserMapper userMapper;
     private final JWTService jwtService;
+    private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
 
     public UserDTO.LoginResponse register(UserDTO.RegisterRequest dto) {
-        UserModel newUser = new UserModel();
-        newUser.setEmail(dto.email());
-        newUser.setPassword(dto.password());
-        newUser.setBsn(dto.bsn());
-        newUser.setFirstName(dto.firstName());
-        newUser.setLastName(dto.lastName());
-        newUser.setPhoneNumber(dto.phoneNumber());
-        newUser.setRole(RoleEnum.ROLE_CUSTOMER);
-        newUser.setIsApproved(false);
+        if (userService.existsByEmail(dto.email())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already exists");
+        }
+
+        UserModel newUser = userMapper.toEntity(dto);
+        newUser.setPassword(passwordEncoder.encode(dto.password()));
 
         UserModel savedUser = userService.create(newUser);
+        log.info("New registration request submitted for email: {}. Status: PENDING", savedUser.getEmail());
+
+        // generating a tentative token for registration context tracking, but users cannot use it on secured endpoints because loadUserByUsername will reject them
         String token = jwtService.generateToken(savedUser.getEmail(), savedUser.getRole().name());
 
         return new UserDTO.LoginResponse(
@@ -38,12 +47,26 @@ public class AuthService {
     }
 
     public UserDTO.LoginResponse login(UserDTO.LoginRequest dto) {
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(dto.email(), dto.password())
-        );
+        try {
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(
+                            dto.email(),
+                            dto.password()
+                    )
+            );
+        } catch (DisabledException e) {
+            log.warn("Login blocked: Account '{}' is pending employee approval.", dto.email());
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "ACCOUNT_PENDING_APPROVAL");
+        } catch (BadCredentialsException e) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid email or password");
+        }
 
         UserModel user = userService.findByEmail(dto.email());
-        String token = jwtService.generateToken(user.getEmail(), user.getRole().name());
+
+        String token = jwtService.generateToken(
+                user.getEmail(),
+                user.getRole().name()
+        );
 
         return new UserDTO.LoginResponse(
                 user.getEmail(),
@@ -51,5 +74,4 @@ public class AuthService {
                 user.getRole()
         );
     }
-
 }
