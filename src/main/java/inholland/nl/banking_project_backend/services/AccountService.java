@@ -4,7 +4,6 @@ import inholland.nl.banking_project_backend.dtos.AccountResponseDTO;
 import inholland.nl.banking_project_backend.dtos.AccountSearchResponseDTO;
 import inholland.nl.banking_project_backend.dtos.CreateAccountRequestDTO;
 import inholland.nl.banking_project_backend.dtos.UpdateAccountLimitsRequestDTO;
-import inholland.nl.banking_project_backend.exceptions.AccountNotFoundException;
 import inholland.nl.banking_project_backend.mappers.AccountMapper;
 import inholland.nl.banking_project_backend.models.AccountModel;
 import inholland.nl.banking_project_backend.models.CustomerProfileModel;
@@ -18,10 +17,11 @@ import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.util.List;
 
 @Slf4j
 @Service
@@ -36,10 +36,10 @@ public class AccountService {
 
     // Creates an additional active account for an approved customer with employee-defined limits.
     @Transactional(rollbackOn = Exception.class)
-    public AccountResponseDTO createAdditionalAccount(Long userId, CreateAccountRequestDTO request) {
-        UserModel user = userRepository.findById(userId)
-                .orElseThrow(() -> new EntityNotFoundException("User not found with id: " + userId));
-        accountPolicy.requireApprovedCustomer(user);
+    public AccountResponseDTO createAccount(CreateAccountRequestDTO request) {
+        UserModel user = userRepository.findById(request.customerUserId())
+                .orElseThrow(() -> new EntityNotFoundException("User not found with id: " + request.customerUserId()));
+        accountPolicy.validateAccountCreation(user, request);
 
         CustomerProfileModel profile = customerProfileRepository.findByUserEmail(user.getEmail())
                 .orElseThrow(() -> new EntityNotFoundException("Customer profile not found."));
@@ -54,38 +54,20 @@ public class AccountService {
         account.setIsActive(true);
 
         AccountModel savedAccount = accountRepository.save(account);
-        log.info("Created {} account for customer user ID: {}", request.accountType(), userId);
+        log.info("Created {} account for customer user ID: {}", request.accountType(), request.customerUserId());
         return accountMapper.toResponse(savedAccount);
     }
 
-    // Returns all active accounts for employee account management.
-    public List<AccountResponseDTO> getAllAccounts() {
-        return accountRepository.findByIsActiveTrue()
-                .stream()
-                .map(accountMapper::toResponse)
-                .toList();
+    // Returns open accounts using an optional owner scope.
+    public Page<AccountResponseDTO> getAccounts(String ownerEmail, Pageable pageable) {
+        return accountRepository.findAccounts(ownerEmail, pageable)
+                .map(accountMapper::toResponse);
     }
 
-    // Returns active accounts owned by one customer.
-    public List<AccountResponseDTO> getAccountsByCustomerEmail(String email) {
-        return accountRepository.findByCustomerUserEmailAndIsActiveTrue(email)
-                .stream()
-                .map(accountMapper::toResponse)
-                .toList();
-    }
-
-    // Returns one active account by IBAN for employee account management.
-    public AccountResponseDTO getAccountByIban(String iban) {
-        AccountModel account = accountRepository.findByIban(iban)
-                .orElseThrow(() -> new AccountNotFoundException("Account not found."));
-        accountPolicy.requireOpenAccount(account);
-        return accountMapper.toResponse(account);
-    }
-
-    // Returns one active customer-owned account by IBAN.
-    public AccountResponseDTO getCustomerAccountByIban(String iban, String email) {
-        AccountModel account = accountRepository.findByIbanAndCustomerUserEmail(iban, email)
-                .orElseThrow(() -> new AccountNotFoundException("Account not found."));
+    // Returns one account by IBAN using an optional owner scope.
+    public AccountResponseDTO getAccount(String iban, String ownerEmail) {
+        AccountModel account = accountRepository.findAccountByIban(iban, ownerEmail)
+                .orElseThrow(() -> new EntityNotFoundException("Account not found."));
         accountPolicy.requireOpenAccount(account);
         return accountMapper.toResponse(account);
     }
@@ -93,19 +75,17 @@ public class AccountService {
     // Updates employee-managed transaction limits for one active account.
     @Transactional
     public AccountResponseDTO updateLimits(String iban, UpdateAccountLimitsRequestDTO request) {
-        AccountModel account = accountRepository.findByIban(iban)
-                .orElseThrow(() -> new AccountNotFoundException("Account not found."));
-        accountPolicy.requireOpenAccount(account);
+        AccountModel account = accountRepository.findAccountByIban(iban, null)
+                .orElseThrow(() -> new EntityNotFoundException("Account not found."));
+        accountPolicy.validateLimitUpdate(account, request);
         account.setAbsoluteLimit(request.absoluteLimit());
         account.setDailyLimit(request.dailyLimit());
         return accountMapper.toResponse(accountRepository.save(account));
     }
 
     // Searches active accounts with a lightweight response for IBAN lookup.
-    public List<AccountSearchResponseDTO> searchAccounts(String term) {
-        return accountRepository.searchActiveAccounts(term)
-                .stream()
-                .map(accountMapper::toSearchResponse)
-                .toList();
+    public Page<AccountSearchResponseDTO> searchAccounts(String term, Pageable pageable) {
+        return accountRepository.searchAccounts(term, pageable)
+                .map(accountMapper::toSearchResponse);
     }
 }

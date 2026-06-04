@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 
 public record CreateAccountRequestDTO(
+        @NotNull Long customerUserId,
         @NotNull AccountTypeEnum accountType,
         @NotNull BigDecimal absoluteLimit,
         @NotNull @DecimalMin("0.01") BigDecimal dailyLimit

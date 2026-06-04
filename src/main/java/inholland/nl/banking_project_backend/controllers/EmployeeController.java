@@ -1,13 +1,9 @@
 package inholland.nl.banking_project_backend.controllers;
 
-import inholland.nl.banking_project_backend.dtos.AccountResponseDTO;
-import inholland.nl.banking_project_backend.dtos.CreateAccountRequestDTO;
 import inholland.nl.banking_project_backend.dtos.UserDTO;
 import inholland.nl.banking_project_backend.mappers.UserMapper;
 import inholland.nl.banking_project_backend.models.UserModel;
-import inholland.nl.banking_project_backend.services.AccountService;
 import inholland.nl.banking_project_backend.services.UserService;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -18,7 +14,6 @@ import java.util.List;
 @RequestMapping("/api/v1/employee")
 @RequiredArgsConstructor
 public class EmployeeController {
-    private final AccountService accountService;
     private final UserService userService;
     private final UserMapper userMapper;
 
@@ -45,14 +40,6 @@ public class EmployeeController {
     public ResponseEntity<Void> denyUser(@PathVariable Long id) {
         userService.denyUser(id);
         return ResponseEntity.noContent().build();
-    }
-
-    // Creates a new customer account with employee-defined limits.
-    @PostMapping("/customers/{userId}/accounts")
-    public ResponseEntity<AccountResponseDTO> createCustomerAccount(
-            @PathVariable Long userId,
-            @Valid @RequestBody CreateAccountRequestDTO request) {
-        return ResponseEntity.ok(accountService.createAdditionalAccount(userId, request));
     }
 
     // Returns approved customers for employee workflows.

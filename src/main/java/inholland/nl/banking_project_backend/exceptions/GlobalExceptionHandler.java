@@ -7,7 +7,6 @@ import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.validation.FieldError;
-import org.springframework.validation.ObjectError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -28,7 +27,7 @@ public class GlobalExceptionHandler {
                 .collect(Collectors.joining("; "));
         String objectMessages = ex.getBindingResult().getGlobalErrors()
                 .stream()
-                .map(ObjectError::getDefaultMessage)
+                .map(org.springframework.validation.ObjectError::getDefaultMessage)
                 .collect(Collectors.joining("; "));
 
         String message = java.util.stream.Stream.of(fieldMessages, objectMessages)
@@ -49,15 +48,10 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(error, ex.getStatusCode());
     }
 
-    // handles "not found"
+    // handles missing database resources
     @ExceptionHandler(EntityNotFoundException.class)
     public ResponseEntity<ErrorResponseDTO> handleNotFound(EntityNotFoundException ex) {
-        ErrorResponseDTO error = new ErrorResponseDTO(
-                HttpStatus.NOT_FOUND.value(),
-                ex.getMessage(),
-                LocalDateTime.now()
-        );
-        return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
+        return buildError(HttpStatus.NOT_FOUND, ex.getMessage());
     }
 
     // handles authentication failures (invalid email/password)
@@ -71,27 +65,9 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(error, HttpStatus.UNAUTHORIZED);
     }
 
-    // handles missing account errors from account and transaction services
-    @ExceptionHandler(AccountNotFoundException.class)
-    public ResponseEntity<ErrorResponseDTO> handleAccountNotFound(AccountNotFoundException ex) {
-        return buildError(HttpStatus.NOT_FOUND, ex.getMessage());
-    }
-
-    // handles inactive account errors from account and transaction services
-    @ExceptionHandler(InactiveAccountException.class)
-    public ResponseEntity<ErrorResponseDTO> handleInactiveAccount(InactiveAccountException ex) {
-        return buildError(HttpStatus.CONFLICT, ex.getMessage());
-    }
-
-    // handles account ownership and authorization business errors
-    @ExceptionHandler(UnauthorizedAccountAccessException.class)
-    public ResponseEntity<ErrorResponseDTO> handleUnauthorizedAccountAccess(UnauthorizedAccountAccessException ex) {
-        return buildError(HttpStatus.FORBIDDEN, ex.getMessage());
-    }
-
-    // handles invalid transaction request data
-    @ExceptionHandler(InvalidTransactionException.class)
-    public ResponseEntity<ErrorResponseDTO> handleInvalidTransaction(InvalidTransactionException ex) {
+    // handles invalid request and business input
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ErrorResponseDTO> handleIllegalArgument(IllegalArgumentException ex) {
         return buildError(HttpStatus.BAD_REQUEST, ex.getMessage());
     }
 
@@ -102,8 +78,8 @@ public class GlobalExceptionHandler {
     }
 
     // handles absolute and daily limit errors
-    @ExceptionHandler({AbsoluteLimitExceededException.class, DailyLimitExceededException.class})
-    public ResponseEntity<ErrorResponseDTO> handleLimitExceeded(RuntimeException ex) {
+    @ExceptionHandler(LimitExceededException.class)
+    public ResponseEntity<ErrorResponseDTO> handleLimitExceeded(LimitExceededException ex) {
         return buildError(HttpStatusCode.valueOf(422), ex.getMessage());
     }
 

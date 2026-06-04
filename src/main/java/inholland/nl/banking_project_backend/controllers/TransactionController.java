@@ -10,6 +10,9 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -24,7 +27,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/transactions")
@@ -36,7 +38,7 @@ public class TransactionController {
     // Returns filtered transactions visible to the authenticated user.
     @Operation(summary = "Get transactions", description = "Returns transaction history with optional date, amount, IBAN, and customer filters.")
     @GetMapping
-    public List<TransactionResponseDTO> getTransactions(
+    public Page<TransactionResponseDTO> getTransactions(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
             @RequestParam(required = false) BigDecimal amountLessThan,
@@ -44,16 +46,15 @@ public class TransactionController {
             @RequestParam(required = false) BigDecimal amountEqualTo,
             @RequestParam(required = false) String iban,
             @RequestParam(required = false) Long userId,
-            @AuthenticationPrincipal UserModel currentUser
+            @AuthenticationPrincipal UserModel currentUser,
+            @PageableDefault(size = 20) Pageable pageable
     ) {
         TransactionFilterRequestDTO filter = new TransactionFilterRequestDTO(
                 startDate, endDate, amountLessThan, amountGreaterThan, amountEqualTo, iban, userId
         );
 
-        if (currentUser.getRole() == RoleEnum.ROLE_EMPLOYEE) {
-            return transactionService.getTransactionsForEmployee(filter);
-        }
-        return transactionService.getTransactionsForCustomer(filter, currentUser.getEmail());
+        String viewerEmail = currentUser.getRole() == RoleEnum.ROLE_EMPLOYEE ? null : currentUser.getEmail();
+        return transactionService.getTransactions(filter, viewerEmail, pageable);
     }
 
     // Returns one transaction visible to the authenticated user.
@@ -63,10 +64,8 @@ public class TransactionController {
             @PathVariable Long id,
             @AuthenticationPrincipal UserModel currentUser
     ) {
-        if (currentUser.getRole() == RoleEnum.ROLE_EMPLOYEE) {
-            return transactionService.getTransactionForEmployee(id);
-        }
-        return transactionService.getTransactionForCustomer(id, currentUser.getEmail());
+        String viewerEmail = currentUser.getRole() == RoleEnum.ROLE_EMPLOYEE ? null : currentUser.getEmail();
+        return transactionService.getTransaction(id, viewerEmail);
     }
 
     // Creates a transaction for customers or an employee checking-account transfer.
@@ -77,9 +76,7 @@ public class TransactionController {
             @Valid @RequestBody CreateTransactionRequestDTO request,
             @AuthenticationPrincipal UserModel currentUser
     ) {
-        if (currentUser.getRole() == RoleEnum.ROLE_EMPLOYEE) {
-            return transactionService.createEmployeeTransfer(request, currentUser);
-        }
-        return transactionService.createCustomerTransaction(request, currentUser);
+        String ownerEmail = currentUser.getRole() == RoleEnum.ROLE_EMPLOYEE ? null : currentUser.getEmail();
+        return transactionService.createTransaction(request, currentUser, ownerEmail);
     }
 }
