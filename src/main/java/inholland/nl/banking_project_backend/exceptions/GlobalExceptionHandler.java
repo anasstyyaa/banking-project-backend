@@ -13,28 +13,28 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
     // handles validation errors (@NotBlank, @Email, @Size)
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<Map<String, Object>> handleValidationExceptions(MethodArgumentNotValidException ex) {
-        Map<String, String> errors = new HashMap<>();
-        ex.getBindingResult().getAllErrors().forEach((error) -> {
-            String fieldName = ((FieldError) error).getField();
-            String errorMessage = error.getDefaultMessage();
-            errors.put(fieldName, errorMessage);
-        });
+    public ResponseEntity<ErrorResponseDTO> handleValidationExceptions(MethodArgumentNotValidException ex) {
+        String fieldMessages = ex.getBindingResult().getFieldErrors()
+                .stream()
+                .map(this::formatFieldError)
+                .collect(Collectors.joining("; "));
+        String objectMessages = ex.getBindingResult().getGlobalErrors()
+                .stream()
+                .map(org.springframework.validation.ObjectError::getDefaultMessage)
+                .collect(Collectors.joining("; "));
 
-        Map<String, Object> response = new HashMap<>();
-        response.put("status", HttpStatus.BAD_REQUEST.value());
-        response.put("errors", errors);
-        response.put("timestamp", LocalDateTime.now());
+        String message = java.util.stream.Stream.of(fieldMessages, objectMessages)
+                .filter(value -> value != null && !value.isBlank())
+                .collect(Collectors.joining("; "));
 
-        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+        return buildError(HttpStatus.BAD_REQUEST, message);
     }
 
     // handles custom business logic
@@ -48,15 +48,10 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(error, ex.getStatusCode());
     }
 
-    // handles "not found"
+    // handles missing database resources
     @ExceptionHandler(EntityNotFoundException.class)
     public ResponseEntity<ErrorResponseDTO> handleNotFound(EntityNotFoundException ex) {
-        ErrorResponseDTO error = new ErrorResponseDTO(
-                HttpStatus.NOT_FOUND.value(),
-                ex.getMessage(),
-                LocalDateTime.now()
-        );
-        return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
+        return buildError(HttpStatus.NOT_FOUND, ex.getMessage());
     }
 
     // handles authentication failures (invalid email/password)
@@ -70,33 +65,21 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(error, HttpStatus.UNAUTHORIZED);
     }
 
-    // handles missing account errors from account and transaction services
-    @ExceptionHandler(AccountNotFoundException.class)
-    public ResponseEntity<ErrorResponseDTO> handleAccountNotFound(AccountNotFoundException ex) {
-        return buildError(HttpStatus.NOT_FOUND, ex.getMessage());
-    }
-
-    // handles inactive account errors from account and transaction services
-    @ExceptionHandler(InactiveAccountException.class)
-    public ResponseEntity<ErrorResponseDTO> handleInactiveAccount(InactiveAccountException ex) {
-        return buildError(HttpStatus.CONFLICT, ex.getMessage());
-    }
-
-    // handles account ownership and authorization business errors
-    @ExceptionHandler(UnauthorizedAccountAccessException.class)
-    public ResponseEntity<ErrorResponseDTO> handleUnauthorizedAccountAccess(UnauthorizedAccountAccessException ex) {
-        return buildError(HttpStatus.FORBIDDEN, ex.getMessage());
-    }
-
-    // handles invalid transaction request data
-    @ExceptionHandler(InvalidTransactionException.class)
-    public ResponseEntity<ErrorResponseDTO> handleInvalidTransaction(InvalidTransactionException ex) {
+    // handles invalid request and business input
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ErrorResponseDTO> handleIllegalArgument(IllegalArgumentException ex) {
         return buildError(HttpStatus.BAD_REQUEST, ex.getMessage());
     }
 
+    // handles invalid account state changes
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<ErrorResponseDTO> handleIllegalState(IllegalStateException ex) {
+        return buildError(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
     // handles absolute and daily limit errors
-    @ExceptionHandler({AbsoluteLimitExceededException.class, DailyLimitExceededException.class})
-    public ResponseEntity<ErrorResponseDTO> handleLimitExceeded(RuntimeException ex) {
+    @ExceptionHandler(LimitExceededException.class)
+    public ResponseEntity<ErrorResponseDTO> handleLimitExceeded(LimitExceededException ex) {
         return buildError(HttpStatusCode.valueOf(422), ex.getMessage());
     }
 
@@ -104,5 +87,10 @@ public class GlobalExceptionHandler {
     private ResponseEntity<ErrorResponseDTO> buildError(HttpStatusCode status, String message) {
         ErrorResponseDTO error = new ErrorResponseDTO(status.value(), message, LocalDateTime.now());
         return new ResponseEntity<>(error, status);
+    }
+
+    // Formats one validation error for the shared error response message.
+    private String formatFieldError(FieldError error) {
+        return error.getField() + ": " + error.getDefaultMessage();
     }
 }
