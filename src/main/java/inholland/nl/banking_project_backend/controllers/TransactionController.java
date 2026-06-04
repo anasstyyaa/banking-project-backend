@@ -1,6 +1,8 @@
 package inholland.nl.banking_project_backend.controllers;
 
-import inholland.nl.banking_project_backend.dtos.TransactionDTO;
+import inholland.nl.banking_project_backend.dtos.CreateTransactionRequestDTO;
+import inholland.nl.banking_project_backend.dtos.TransactionFilterRequestDTO;
+import inholland.nl.banking_project_backend.dtos.TransactionResponseDTO;
 import inholland.nl.banking_project_backend.models.RoleEnum;
 import inholland.nl.banking_project_backend.models.UserModel;
 import inholland.nl.banking_project_backend.services.TransactionService;
@@ -34,7 +36,7 @@ public class TransactionController {
     // Returns filtered transactions visible to the authenticated user.
     @Operation(summary = "Get transactions", description = "Returns transaction history with optional date, amount, IBAN, and customer filters.")
     @GetMapping
-    public List<TransactionDTO.TransactionResponse> getTransactions(
+    public List<TransactionResponseDTO> getTransactions(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
             @RequestParam(required = false) BigDecimal amountLessThan,
@@ -44,11 +46,11 @@ public class TransactionController {
             @RequestParam(required = false) Long userId,
             @AuthenticationPrincipal UserModel currentUser
     ) {
-        TransactionDTO.FilterRequest filter = new TransactionDTO.FilterRequest(
+        TransactionFilterRequestDTO filter = new TransactionFilterRequestDTO(
                 startDate, endDate, amountLessThan, amountGreaterThan, amountEqualTo, iban, userId
         );
 
-        if (isEmployee(currentUser)) {
+        if (currentUser.getRole() == RoleEnum.ROLE_EMPLOYEE) {
             return transactionService.getTransactionsForEmployee(filter);
         }
         return transactionService.getTransactionsForCustomer(filter, currentUser.getEmail());
@@ -57,11 +59,11 @@ public class TransactionController {
     // Returns one transaction visible to the authenticated user.
     @Operation(summary = "Get transaction by id", description = "Returns one transaction when the user has access.")
     @GetMapping("/{id}")
-    public TransactionDTO.TransactionResponse getTransaction(
+    public TransactionResponseDTO getTransaction(
             @PathVariable Long id,
             @AuthenticationPrincipal UserModel currentUser
     ) {
-        if (isEmployee(currentUser)) {
+        if (currentUser.getRole() == RoleEnum.ROLE_EMPLOYEE) {
             return transactionService.getTransactionForEmployee(id);
         }
         return transactionService.getTransactionForCustomer(id, currentUser.getEmail());
@@ -71,18 +73,13 @@ public class TransactionController {
     @Operation(summary = "Create transaction", description = "Creates a transfer, ATM deposit, or ATM withdrawal using a transaction type.")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public TransactionDTO.TransactionResponse createTransaction(
-            @Valid @RequestBody TransactionDTO.CreateRequest request,
+    public TransactionResponseDTO createTransaction(
+            @Valid @RequestBody CreateTransactionRequestDTO request,
             @AuthenticationPrincipal UserModel currentUser
     ) {
-        if (isEmployee(currentUser)) {
+        if (currentUser.getRole() == RoleEnum.ROLE_EMPLOYEE) {
             return transactionService.createEmployeeTransfer(request, currentUser);
         }
         return transactionService.createCustomerTransaction(request, currentUser);
-    }
-
-    // Checks whether the authenticated user has the employee role.
-    private boolean isEmployee(UserModel user) {
-        return user.getRole() == RoleEnum.ROLE_EMPLOYEE;
     }
 }

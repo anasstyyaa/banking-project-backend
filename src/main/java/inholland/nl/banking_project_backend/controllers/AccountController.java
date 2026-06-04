@@ -1,6 +1,8 @@
 package inholland.nl.banking_project_backend.controllers;
 
-import inholland.nl.banking_project_backend.dtos.AccountDTO;
+import inholland.nl.banking_project_backend.dtos.AccountResponseDTO;
+import inholland.nl.banking_project_backend.dtos.AccountSearchResponseDTO;
+import inholland.nl.banking_project_backend.dtos.UpdateAccountLimitsRequestDTO;
 import inholland.nl.banking_project_backend.models.RoleEnum;
 import inholland.nl.banking_project_backend.models.UserModel;
 import inholland.nl.banking_project_backend.services.AccountService;
@@ -31,8 +33,8 @@ public class AccountController {
     // Returns active accounts visible to the authenticated user.
     @Operation(summary = "Get visible accounts", description = "Returns own accounts for customers and all active accounts for employees.")
     @GetMapping
-    public ResponseEntity<List<AccountDTO.AccountResponse>> getAccounts(@AuthenticationPrincipal UserModel currentUser) {
-        if (isEmployee(currentUser)) {
+    public ResponseEntity<List<AccountResponseDTO>> getAccounts(@AuthenticationPrincipal UserModel currentUser) {
+        if (currentUser.getRole() == RoleEnum.ROLE_EMPLOYEE) {
             return ResponseEntity.ok(accountService.getAllAccounts());
         }
         return ResponseEntity.ok(accountService.getAccountsByCustomerEmail(currentUser.getEmail()));
@@ -41,11 +43,11 @@ public class AccountController {
     // Returns one active account visible to the authenticated user.
     @Operation(summary = "Get account by IBAN", description = "Returns one account if the authenticated user has access.")
     @GetMapping("/{iban}")
-    public ResponseEntity<AccountDTO.AccountResponse> getAccount(
+    public ResponseEntity<AccountResponseDTO> getAccount(
             @PathVariable String iban,
             @AuthenticationPrincipal UserModel currentUser
     ) {
-        if (isEmployee(currentUser)) {
+        if (currentUser.getRole() == RoleEnum.ROLE_EMPLOYEE) {
             return ResponseEntity.ok(accountService.getAccountByIban(iban));
         }
         return ResponseEntity.ok(accountService.getCustomerAccountByIban(iban, currentUser.getEmail()));
@@ -54,7 +56,7 @@ public class AccountController {
     // Searches active accounts with a lightweight IBAN lookup response.
     @Operation(summary = "Search accounts", description = "Searches active accounts by customer name or IBAN.")
     @GetMapping("/search")
-    public ResponseEntity<List<AccountDTO.AccountSearchResponse>> searchAccounts(@RequestParam String query) {
+    public ResponseEntity<List<AccountSearchResponseDTO>> searchAccounts(@RequestParam String query) {
         return ResponseEntity.ok(accountService.searchAccounts(query));
     }
 
@@ -62,15 +64,10 @@ public class AccountController {
     @Operation(summary = "Update account limits", description = "Allows an employee to update absolute and daily transfer limits.")
     @PatchMapping("/{iban}/limits")
     @PreAuthorize("hasRole('EMPLOYEE')")
-    public ResponseEntity<AccountDTO.AccountResponse> updateLimits(
+    public ResponseEntity<AccountResponseDTO> updateLimits(
             @PathVariable String iban,
-            @Valid @RequestBody AccountDTO.UpdateLimitsRequest request
+            @Valid @RequestBody UpdateAccountLimitsRequestDTO request
     ) {
         return ResponseEntity.ok(accountService.updateLimits(iban, request));
-    }
-
-    // Checks whether the authenticated user has the employee role.
-    private boolean isEmployee(UserModel user) {
-        return user.getRole() == RoleEnum.ROLE_EMPLOYEE;
     }
 }

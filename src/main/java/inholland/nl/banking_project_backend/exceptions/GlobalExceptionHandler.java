@@ -7,6 +7,7 @@ import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.validation.FieldError;
+import org.springframework.validation.ObjectError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -21,9 +22,17 @@ public class GlobalExceptionHandler {
     // handles validation errors (@NotBlank, @Email, @Size)
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponseDTO> handleValidationExceptions(MethodArgumentNotValidException ex) {
-        String message = ex.getBindingResult().getFieldErrors()
+        String fieldMessages = ex.getBindingResult().getFieldErrors()
                 .stream()
                 .map(this::formatFieldError)
+                .collect(Collectors.joining("; "));
+        String objectMessages = ex.getBindingResult().getGlobalErrors()
+                .stream()
+                .map(ObjectError::getDefaultMessage)
+                .collect(Collectors.joining("; "));
+
+        String message = java.util.stream.Stream.of(fieldMessages, objectMessages)
+                .filter(value -> value != null && !value.isBlank())
                 .collect(Collectors.joining("; "));
 
         return buildError(HttpStatus.BAD_REQUEST, message);

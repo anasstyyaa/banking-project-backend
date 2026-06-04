@@ -1,6 +1,7 @@
 package inholland.nl.banking_project_backend.controllers;
 
-import inholland.nl.banking_project_backend.dtos.AccountDTO;
+import inholland.nl.banking_project_backend.dtos.AccountResponseDTO;
+import inholland.nl.banking_project_backend.dtos.CreateAccountRequestDTO;
 import inholland.nl.banking_project_backend.dtos.UserDTO;
 import inholland.nl.banking_project_backend.mappers.UserMapper;
 import inholland.nl.banking_project_backend.models.UserModel;
@@ -48,9 +49,9 @@ public class EmployeeController {
 
     // Creates a new customer account with employee-defined limits.
     @PostMapping("/customers/{userId}/accounts")
-    public ResponseEntity<AccountDTO.AccountResponse> createCustomerAccount(
+    public ResponseEntity<AccountResponseDTO> createCustomerAccount(
             @PathVariable Long userId,
-            @Valid @RequestBody AccountDTO.AccountCreationRequest request) {
+            @Valid @RequestBody CreateAccountRequestDTO request) {
         return ResponseEntity.ok(accountService.createAdditionalAccount(userId, request));
     }
 
