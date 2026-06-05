@@ -74,6 +74,7 @@ public class SecurityConfig {
                         .csrfTokenRequestHandler(requestHandler)
                         .ignoringRequestMatchers("/h2-console/**")
                         .ignoringRequestMatchers("/api/v1/auth/csrf")
+                        .ignoringRequestMatchers("/api/v1/auth/**")
                 )
                 .headers(headers -> headers
                         .frameOptions(frame -> frame.disable())
