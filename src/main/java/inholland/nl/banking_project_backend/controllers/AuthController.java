@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -73,7 +74,12 @@ public class AuthController {
     }
 
     @GetMapping("/csrf")
-    public CsrfToken getCsrfToken(HttpServletRequest request) {
-        return (CsrfToken) request.getAttribute(CsrfToken.class.getName());
+    public ResponseEntity<Void> getCsrfToken(HttpServletRequest request, HttpServletResponse response) {
+        CsrfToken csrfToken = (CsrfToken) request.getAttribute(CsrfToken.class.getName());
+        if (csrfToken != null) {
+            csrfToken.getToken(); 
+        }
+        return ResponseEntity.ok().build();
     }
+
 }
