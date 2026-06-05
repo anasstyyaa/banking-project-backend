@@ -12,6 +12,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.LocalDateTime;
 import java.util.Objects;
@@ -82,6 +83,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(LimitExceededException.class)
     public ResponseEntity<ErrorResponseDTO> handleLimitExceeded(LimitExceededException ex) {
         return buildError(HttpStatusCode.valueOf(422), ex.getMessage());
+    }
+
+    @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)
+    public ResponseEntity<ErrorResponseDTO> handleResourceNotFound(NoResourceFoundException ex) {
+        return buildError(HttpStatus.NOT_FOUND, "The requested static asset resource was not found on this server.");
     }
 
     //catch-all fallback
