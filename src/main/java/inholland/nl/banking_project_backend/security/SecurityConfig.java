@@ -72,10 +72,10 @@ public class SecurityConfig {
         http
                 .cors(withDefaults())
                 .csrf(csrf -> csrf
-                        .csrfTokenRepository(getCsrfTokenRepository())
-                        .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                        .csrfTokenRepository(customCsrfTokenRepository())
                         .csrfTokenRequestHandler(requestHandler)
                         .ignoringRequestMatchers("/h2-console/**")
+                        .ignoringRequestMatchers("/api/v1/auth/csrf")
                 )
                 .headers(headers -> headers
                         .frameOptions(frame -> frame.disable())
@@ -108,27 +108,23 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of(
-                "http://localhost:5173",
-                "https://anasstyyaa.github.io"
-        ));
+        configuration.setAllowedOrigins(List.of("https://anasstyyaa.github.io"));
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(List.of("Content-Type", "X-XSRF-TOKEN", "Authorization"));
+        configuration.setAllowCredentials(true); // Required for the browser to exchange cookies securely
 
-        configuration.setAllowedMethods(List.of(
-                "GET", "POST", "PUT", "DELETE", "OPTIONS"
-        ));
-
-        configuration.setAllowedHeaders(List.of("*"));
-        configuration.setAllowCredentials(true);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
-
         return source;
     }
 
-    private CookieCsrfTokenRepository getCsrfTokenRepository() {
+    private CookieCsrfTokenRepository customCsrfTokenRepository() {
         CookieCsrfTokenRepository repository = CookieCsrfTokenRepository.withHttpOnlyFalse();
-        repository.setCookiePath("/");
-        repository.setSecure(true);
+        repository.setCookieCustomizer(customizer -> customizer
+                .sameSite("None")
+                .secure(true)
+                .path("/")
+        );
         return repository;
     }
 }
