@@ -3,6 +3,7 @@ import inholland.nl.banking_project_backend.enums.AccountTypeEnum;
 import inholland.nl.banking_project_backend.models.RoleEnum;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
@@ -10,12 +11,37 @@ import java.util.List;
 
 public class UserDTO {
     public record RegisterRequest(
-            @NotBlank @Email String email,
-            @NotBlank @Size(min = 8) String password,
-            @NotBlank String bsn,
-            @NotBlank String firstName,
-            @NotBlank String lastName,
-            @NotBlank String phoneNumber
+            @NotBlank(message = "Email is required")
+            @Email(message = "Please provide a valid email address structure")
+            @Pattern(regexp = "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,6}$", message = "Email format is invalid")
+            String email,
+
+            @NotBlank(message = "Password is required")
+            @Size(min = 8, max = 100, message = "Password must be between 8 and 100 characters long")
+            @Pattern(
+                    regexp = "^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[@#$%^&+=!_]).*$",
+                    message = "Password must contain at least one uppercase letter, one lowercase letter, one digit, and one special character (@#$%^&+=!_)"
+            )
+            String password,
+
+            @NotBlank(message = "BSN number is required")
+            @Pattern(regexp = "^[0-9]{9}$", message = "BSN must be exactly 9 digits long")
+            String bsn,
+
+            @NotBlank(message = "First name is required")
+            @Size(max = 50, message = "First name cannot exceed 50 characters")
+            String firstName,
+
+            @NotBlank(message = "Last name is required")
+            @Size(max = 50, message = "Last name cannot exceed 50 characters")
+            String lastName,
+
+            @NotBlank(message = "Phone number is required")
+            @Pattern(
+                    regexp = "^(\\+31|0|0031)[1-9][0-9]{8}$",
+                    message = "Please provide a valid Dutch mobile or landline phone number (e.g., +31612345678 or 0612345678)"
+            )
+            String phoneNumber
     ) {}
 
     public record LoginRequest(
