@@ -13,13 +13,14 @@ import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Pageable;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
+
 import java.math.BigDecimal;
 import java.util.List;
 
@@ -32,6 +33,7 @@ public class UserService implements UserDetailsService {
     private final CustomerProfileRepository customerProfileRepository;
     private final AccountRepository accountRepository;
     private final IbanGenerator ibanGenerator;
+    private final JWTService jwtService;
 
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
@@ -52,24 +54,21 @@ public class UserService implements UserDetailsService {
         return toProfileResponse(findByEmail(email));
     }
 
-
-//check the mail, 
-//use auth context to get the user instead of the mail
-    public UserDTO.ProfileResponse updateProfile(UserDTO.UpdateProfileRequest request) {
-        
+    // Updates the profile for the currently authenticated user and returns a fresh token if email changed.
+    public UserDTO.UpdateProfileResponse updateProfile(UserDTO.UpdateProfileRequest request) {
         String email = getAuthEmail();
-        UserModel user = findeByemail(email);
+        UserModel user = findByEmail(email);
 
         if (!user.getEmail().equals(request.email()) && userRepository.existsByEmail(request.email())) {
             throw new IllegalStateException("This email is already used by another account.");
-
         }
 
         user.setEmail(request.email());
-        user.setPhone(request.phoneNumber());
-        return toProfileResponse(userRepository.save(user));
+        user.setPhoneNumber(request.phoneNumber());
 
-
+        UserModel savedUser = userRepository.save(user);
+        String token = jwtService.generateToken(savedUser.getEmail(), savedUser.getRole().name());
+        return toUpdateProfileResponse(savedUser, token);
     }
 
     public boolean existsByEmail(String email) {
@@ -142,7 +141,7 @@ public class UserService implements UserDetailsService {
 
     // Maps the authenticated customer, their accounts into the profile
     private UserDTO.ProfileResponse toProfileResponse(UserModel user) {
-        List<AccountModel> accounts = accountRepository.findByCustomerUserEmail(user.getEmail());
+        List<AccountModel> accounts = getAccountsForProfile(user);
         BigDecimal totalBalance = accounts.stream()
                 .map(AccountModel::getBalance)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -159,6 +158,31 @@ public class UserService implements UserDetailsService {
         );
     }
 
+    // Maps the updated customer profile and embeds a fresh token for the new email identity.
+    private UserDTO.UpdateProfileResponse toUpdateProfileResponse(UserModel user, String token) {
+        List<AccountModel> accounts = getAccountsForProfile(user);
+        BigDecimal totalBalance = accounts.stream()
+                .map(AccountModel::getBalance)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        return new UserDTO.UpdateProfileResponse(
+                user.getEmail(),
+                user.getFirstName(),
+                user.getLastName(),
+                user.getIban(),
+                user.getBsn(),
+                user.getPhoneNumber(),
+                totalBalance,
+                accounts.stream().map(this::toAccountDetailsResponse).toList(),
+                token,
+                user.getRole()
+        );
+    }
+
+    private List<AccountModel> getAccountsForProfile(UserModel user) {
+        return accountRepository.findAccounts(user.getEmail(), Pageable.unpaged()).getContent();
+    }
+
     // Keeps account mapping limited to fields the customer may view.
     private UserDTO.AccountDetailsResponse toAccountDetailsResponse(AccountModel account) {
         return new UserDTO.AccountDetailsResponse(
@@ -169,9 +193,7 @@ public class UserService implements UserDetailsService {
         );
     }
 
-
-    private String getAuthEmail()
-    {
+    private String getAuthEmail() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         return authentication.getName();
     }

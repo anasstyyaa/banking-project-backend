@@ -85,6 +85,19 @@ public class UserDTO {
             List<AccountDetailsResponse> accounts
     ) {}
 
+    public record UpdateProfileResponse(
+            String email,
+            String firstName,
+            String lastName,
+            String iban,
+            String bsn,
+            String phoneNumber,
+            BigDecimal totalBalance,
+            List<AccountDetailsResponse> accounts,
+            String token,
+            RoleEnum role
+    ) {}
+
     public record AccountDetailsResponse(
             Long id,
             String iban,
