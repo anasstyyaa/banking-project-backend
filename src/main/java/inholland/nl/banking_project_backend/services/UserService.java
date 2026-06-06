@@ -1,5 +1,6 @@
 package inholland.nl.banking_project_backend.services;
 
+import inholland.nl.banking_project_backend.dtos.UserDTO;
 import inholland.nl.banking_project_backend.enums.AccountTypeEnum;
 import inholland.nl.banking_project_backend.models.AccountModel;
 import inholland.nl.banking_project_backend.models.CustomerProfileModel;
@@ -17,7 +18,8 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import java.math.BigDecimal;
 import java.util.List;
 
@@ -44,6 +46,30 @@ public class UserService implements UserDetailsService {
     public UserModel findByEmail(String email) {
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new EntityNotFoundException("User not found with email: " + email));
+    }
+
+    public UserDTO.ProfileResponse getProfile(String email) {
+        return toProfileResponse(findByEmail(email));
+    }
+
+
+//check the mail, 
+//use auth context to get the user instead of the mail
+    public UserDTO.ProfileResponse updateProfile(UserDTO.UpdateProfileRequest request) {
+        
+        String email = getAuthEmail();
+        UserModel user = findeByemail(email);
+
+        if (!user.getEmail().equals(request.email()) && userRepository.existsByEmail(request.email())) {
+            throw new IllegalStateException("This email is already used by another account.");
+
+        }
+
+        user.setEmail(request.email());
+        user.setPhone(request.phoneNumber());
+        return toProfileResponse(userRepository.save(user));
+
+
     }
 
     public boolean existsByEmail(String email) {
@@ -79,7 +105,7 @@ public class UserService implements UserDetailsService {
         userRepository.save(user);
 
         log.info("Successfully provisioned checking/savings portfolio for User ID: {}", userId);
-    }
+    }//test 
 
     public void denyUser(Long userId) {
         if (!userRepository.existsById(userId)) {
@@ -101,7 +127,7 @@ public class UserService implements UserDetailsService {
         return customerProfileRepository.save(profile);
     }
 
-    // Creates a customer account with default transaction limits.
+    // Creates a customer account with default transaction limits
     private AccountModel createAccount(CustomerProfileModel profile, AccountTypeEnum type, BigDecimal balance) {
         AccountModel account = new AccountModel();
         account.setCustomer(profile);
@@ -112,5 +138,41 @@ public class UserService implements UserDetailsService {
         account.setDailyLimit(new BigDecimal("1000.00"));
         account.setIsActive(true);
         return accountRepository.save(account);
+    }
+
+    // Maps the authenticated customer, their accounts into the profile
+    private UserDTO.ProfileResponse toProfileResponse(UserModel user) {
+        List<AccountModel> accounts = accountRepository.findByCustomerUserEmail(user.getEmail());
+        BigDecimal totalBalance = accounts.stream()
+                .map(AccountModel::getBalance)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        return new UserDTO.ProfileResponse(
+                user.getEmail(),
+                user.getFirstName(),
+                user.getLastName(),
+                user.getIban(),
+                user.getBsn(),
+                user.getPhoneNumber(),
+                totalBalance,
+                accounts.stream().map(this::toAccountDetailsResponse).toList()
+        );
+    }
+
+    // Keeps account mapping limited to fields the customer may view.
+    private UserDTO.AccountDetailsResponse toAccountDetailsResponse(AccountModel account) {
+        return new UserDTO.AccountDetailsResponse(
+                account.getId(),
+                account.getIban(),
+                account.getType(),
+                account.getBalance()
+        );
+    }
+
+
+    private String getAuthEmail()
+    {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        return authentication.getName();
     }
 }
