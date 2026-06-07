@@ -83,9 +83,19 @@ public class AccountService {
         return accountMapper.toResponse(accountRepository.save(account));
     }
 
+    @Transactional
+    public AccountResponseDTO closeAccount(String iban) {
+        AccountModel account = accountRepository.findAccountByIban(iban, null)
+                .orElseThrow(() -> new EntityNotFoundException("Account not found."));
+        accountPolicy.validateAccountClosure(account);
+        account.setIsActive(false);
+        return accountMapper.toResponse(accountRepository.save(account));
+    }
+
     // Searches active accounts with a lightweight response for IBAN lookup.
     public Page<AccountSearchResponseDTO> searchAccounts(String term, Pageable pageable) {
         return accountRepository.searchAccounts(term, pageable)
                 .map(accountMapper::toSearchResponse);
     }
+
 }

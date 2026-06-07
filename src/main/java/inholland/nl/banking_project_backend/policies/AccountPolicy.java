@@ -28,6 +28,13 @@ public class AccountPolicy {
         }
     }
 
+    public void validateAccountClosure(AccountModel account) {
+        requireOpenAccount(account);
+        if (account.getBalance().compareTo(java.math.BigDecimal.ZERO) != 0) {
+            throw new IllegalStateException("Cannot close an account with a non-zero balance.");
+        }
+    }
+
     // Ensures only approved customers can receive created accounts.
     private void requireApprovedCustomer(UserModel user) {
         if (!Boolean.TRUE.equals(user.getIsApproved())) {

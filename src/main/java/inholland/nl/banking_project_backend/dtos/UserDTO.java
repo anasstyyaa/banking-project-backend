@@ -1,10 +1,8 @@
 package inholland.nl.banking_project_backend.dtos;
 import inholland.nl.banking_project_backend.enums.AccountTypeEnum;
+import inholland.nl.banking_project_backend.enums.RegistrationDecisionEnum;
 import inholland.nl.banking_project_backend.models.RoleEnum;
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Pattern;
-import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.*;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -71,7 +69,15 @@ public class UserDTO {
             String email,
             String bsn,
             String phoneNumber,
+            String iban,
+            Boolean isApproved,
             RoleEnum role
+    ) {}
+
+    public record UpdateRegistrationStatusRequest(
+            @NotNull RegistrationDecisionEnum status,
+            BigDecimal absoluteLimit,
+            @DecimalMin("0.01") BigDecimal dailyLimit
     ) {}
 
     public record ProfileResponse(

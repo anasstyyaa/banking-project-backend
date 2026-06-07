@@ -2,6 +2,7 @@ package inholland.nl.banking_project_backend.services;
 
 import inholland.nl.banking_project_backend.dtos.UserDTO;
 import inholland.nl.banking_project_backend.enums.AccountTypeEnum;
+import inholland.nl.banking_project_backend.enums.RegistrationDecisionEnum;
 import inholland.nl.banking_project_backend.models.AccountModel;
 import inholland.nl.banking_project_backend.models.CustomerProfileModel;
 import inholland.nl.banking_project_backend.models.RoleEnum;
@@ -13,6 +14,7 @@ import inholland.nl.banking_project_backend.utils.IbanGenerator;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
@@ -171,14 +173,19 @@ class UserServiceTest {
         AccountModel checkingAccount = new AccountModel();
         checkingAccount.setIban("NL01INHOChecking");
 
+        UserDTO.UpdateRegistrationStatusRequest request = new UserDTO.UpdateRegistrationStatusRequest(
+                RegistrationDecisionEnum.APPROVED,
+                new BigDecimal("-300.00"),
+                new BigDecimal("750.00")
+        );
+
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(customerProfileRepository.findByUserEmail("pending@mail.com")).thenReturn(Optional.empty());
         when(customerProfileRepository.save(any(CustomerProfileModel.class))).thenReturn(profile);
         when(ibanGenerator.generateDutchIban()).thenReturn("NL01INHOChecking").thenReturn("NL01INHOSavings");
         when(accountRepository.save(any(AccountModel.class))).thenReturn(checkingAccount);
 
-        userService.approveUser(userId);
-
+        userService.approveUser(userId, request);
 
         assertTrue(user.getIsApproved());
         assertEquals("NL01INHOChecking", user.getIban());
@@ -195,7 +202,10 @@ class UserServiceTest {
         user.setIsApproved(true);
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
 
-        userService.approveUser(userId);
+        UserDTO.UpdateRegistrationStatusRequest request =
+                new UserDTO.UpdateRegistrationStatusRequest(RegistrationDecisionEnum.APPROVED, null, null);
+
+        userService.approveUser(userId, request);
 
         verify(customerProfileRepository, never()).findByUserEmail(any());
         verify(accountRepository, never()).save(any());
@@ -218,5 +228,68 @@ class UserServiceTest {
 
         assertThrows(EntityNotFoundException.class, () -> userService.denyUser(userId));
         verify(userRepository, never()).deleteById(userId);
+    }
+
+    @Test
+    void givenApprovalRequestWithCustomLimits_whenApproveUser_shouldApplyThemToNewAccounts() {
+        Long userId = 3L;
+        UserModel user = new UserModel();
+        user.setId(userId);
+        user.setEmail("custom@mail.com");
+        user.setIsApproved(false);
+
+        CustomerProfileModel profile = new CustomerProfileModel();
+        profile.setUser(user);
+
+        UserDTO.UpdateRegistrationStatusRequest request = new UserDTO.UpdateRegistrationStatusRequest(
+                RegistrationDecisionEnum.APPROVED,
+                new BigDecimal("-200.00"),
+                new BigDecimal("500.00")
+        );
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(customerProfileRepository.findByUserEmail("custom@mail.com")).thenReturn(Optional.of(profile));
+        when(ibanGenerator.generateDutchIban()).thenReturn("NL01A").thenReturn("NL01B");
+        when(accountRepository.save(any(AccountModel.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        userService.approveUser(userId, request);
+
+        ArgumentCaptor<AccountModel> captor = ArgumentCaptor.forClass(AccountModel.class);
+        verify(accountRepository, times(2)).save(captor.capture());
+
+        for (AccountModel account : captor.getAllValues()) {
+            assertEquals(new BigDecimal("-200.00"), account.getAbsoluteLimit());
+            assertEquals(new BigDecimal("500.00"), account.getDailyLimit());
+        }
+    }
+
+    @Test
+    void givenApprovalRequestWithoutLimits_whenApproveUser_shouldFallBackToDefaultLimits() {
+        Long userId = 4L;
+        UserModel user = new UserModel();
+        user.setId(userId);
+        user.setEmail("nolimits@mail.com");
+        user.setIsApproved(false);
+
+        CustomerProfileModel profile = new CustomerProfileModel();
+        profile.setUser(user);
+
+        UserDTO.UpdateRegistrationStatusRequest request =
+                new UserDTO.UpdateRegistrationStatusRequest(RegistrationDecisionEnum.APPROVED, null, null);
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(customerProfileRepository.findByUserEmail("nolimits@mail.com")).thenReturn(Optional.of(profile));
+        when(ibanGenerator.generateDutchIban()).thenReturn("NL01C").thenReturn("NL01D");
+        when(accountRepository.save(any(AccountModel.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        userService.approveUser(userId, request);
+
+        ArgumentCaptor<AccountModel> captor = ArgumentCaptor.forClass(AccountModel.class);
+        verify(accountRepository, times(2)).save(captor.capture());
+
+        for (AccountModel account : captor.getAllValues()) {
+            assertEquals(new BigDecimal("-500.00"), account.getAbsoluteLimit());
+            assertEquals(new BigDecimal("1000.00"), account.getDailyLimit());
+        }
     }
 }

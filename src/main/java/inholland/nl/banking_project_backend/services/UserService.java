@@ -13,6 +13,7 @@ import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -75,16 +76,16 @@ public class UserService implements UserDetailsService {
         return userRepository.existsByEmail(email);
     }
 
-    public List<UserModel> getPendingUsers() {
-        return userRepository.findAllByIsApprovedFalse();
+    public Page<UserModel> getPendingUsers(String search, Pageable pageable) {
+        return userRepository.findByApprovalStatus(false, search, pageable);
     }
 
-    public List<UserModel> getActiveUsers() {
-        return userRepository.findAllByIsApprovedTrue();
+    public Page<UserModel> getActiveUsers(String search, Pageable pageable) {
+        return userRepository.findByApprovalStatus(true, search, pageable);
     }
 
     @Transactional(rollbackOn = Exception.class)
-    public void approveUser(Long userId) {
+    public void approveUser(Long userId, UserDTO.UpdateRegistrationStatusRequest request) {
         UserModel user = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("User not found with id: " + userId));
 
@@ -98,8 +99,13 @@ public class UserService implements UserDetailsService {
                     return customerProfileRepository.save(newProfile);
                 });
 
-        AccountModel checking = createAccount(profile, AccountTypeEnum.CHECKING, new BigDecimal("1000.00"));
-        createAccount(profile, AccountTypeEnum.SAVINGS, BigDecimal.ZERO);
+        BigDecimal absoluteLimit = (request != null && request.absoluteLimit() != null)
+                ? request.absoluteLimit() : new BigDecimal("-500.00");
+        BigDecimal dailyLimit = (request != null && request.dailyLimit() != null)
+                ? request.dailyLimit() : new BigDecimal("1000.00");
+
+        AccountModel checking = createAccount(profile, AccountTypeEnum.CHECKING, new BigDecimal("1000.00"), absoluteLimit, dailyLimit);
+        createAccount(profile, AccountTypeEnum.SAVINGS, BigDecimal.ZERO, absoluteLimit, dailyLimit);
         user.setIban(checking.getIban());
         userRepository.save(user);
 
@@ -127,14 +133,14 @@ public class UserService implements UserDetailsService {
     }
 
     // Creates a customer account with default transaction limits
-    private AccountModel createAccount(CustomerProfileModel profile, AccountTypeEnum type, BigDecimal balance) {
+    private AccountModel createAccount(CustomerProfileModel profile, AccountTypeEnum type, BigDecimal balance, BigDecimal absoluteLimit, BigDecimal dailyLimit) {
         AccountModel account = new AccountModel();
         account.setCustomer(profile);
         account.setIban(ibanGenerator.generateDutchIban());
         account.setType(type);
         account.setBalance(balance);
-        account.setAbsoluteLimit(new BigDecimal("-500.00"));
-        account.setDailyLimit(new BigDecimal("1000.00"));
+        account.setAbsoluteLimit(absoluteLimit);
+        account.setDailyLimit(dailyLimit);
         account.setIsActive(true);
         return accountRepository.save(account);
     }
