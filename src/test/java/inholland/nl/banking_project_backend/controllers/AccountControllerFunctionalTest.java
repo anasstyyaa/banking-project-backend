@@ -177,7 +177,7 @@ class AccountControllerFunctionalTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").exists());
+                .andExpect(jsonPath("$.errors.dailyLimit").exists());
     }
 
     private UserModel savedUser(String label, RoleEnum role) {

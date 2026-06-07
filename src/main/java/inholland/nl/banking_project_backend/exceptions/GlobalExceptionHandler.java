@@ -100,7 +100,7 @@ public class GlobalExceptionHandler {
     }
 
     // handles absolute and daily limit errors
-    @ExceptionHandler({AbsoluteLimitExceededException.class, DailyLimitExceededException.class})
+    @ExceptionHandler({AbsoluteLimitExceededException.class, DailyLimitExceededException.class, LimitExceededException.class})
     public ResponseEntity<ErrorResponseDTO> handleLimitExceeded(RuntimeException ex) {
         return buildError(HttpStatusCode.valueOf(422), ex.getMessage());
     }
