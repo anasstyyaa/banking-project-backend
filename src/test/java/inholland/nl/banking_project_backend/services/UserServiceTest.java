@@ -56,9 +56,7 @@ class UserServiceTest {
     @InjectMocks
     private UserService userService;
 
-    // ==========================================
     // SECURITY UTILITY METHOD
-    // ==========================================
     private void mockSecurityContext(String email) {
         Authentication authentication = mock(Authentication.class);
         when(authentication.getName()).thenReturn(email);
@@ -67,57 +65,46 @@ class UserServiceTest {
         SecurityContextHolder.setContext(securityContext);
     }
 
-    // ==========================================
+    
     // USERDETAILS & CORE CRUD TESTS
-    // ==========================================
 
     @Test
     void givenExistingEmail_whenLoadUserByUsername_shouldReturnUserDetails() {
-        // Arrange
         String email = "test@mail.com";
         UserModel user = new UserModel();
         user.setEmail(email);
         when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
 
-        // Act
         UserDetails result = userService.loadUserByUsername(email);
 
-        // Assert
+        
         assertNotNull(result);
         assertEquals(email, result.getUsername());
     }
 
     @Test
     void givenNonExistingEmail_whenLoadUserByUsername_shouldThrowUsernameNotFoundException() {
-        // Arrange
         String email = "missing@mail.com";
         when(userRepository.findByEmail(email)).thenReturn(Optional.empty());
 
-        // Act & Assert
         assertThrows(UsernameNotFoundException.class, () -> userService.loadUserByUsername(email));
     }
 
     @Test
     void givenUserEntity_whenCreate_shouldSaveAndReturnUser() {
-        // Arrange
         UserModel user = new UserModel();
         when(userRepository.save(user)).thenReturn(user);
 
-        // Act
         UserModel result = userService.create(user);
 
-        // Assert
         assertNotNull(result);
         verify(userRepository).save(user);
     }
 
-    // ==========================================
     // PROFILE & UPDATE TESTS
-    // ==========================================
 
     @Test
     void givenAuthenticatedUserWithUniqueNewEmail_whenUpdateProfile_shouldSaveAndReturnResponseWithToken() {
-        // Arrange
         String oldEmail = "old@mail.com";
         String newEmail = "new@mail.com";
         mockSecurityContext(oldEmail);
@@ -140,10 +127,8 @@ class UserServiceTest {
         when(accountRepository.findAccounts(eq(newEmail), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(Collections.emptyList()));
 
-        // Act
         UserDTO.UpdateProfileResponse response = userService.updateProfile(request);
 
-        // Assert
         assertNotNull(response);
         assertEquals(newEmail, response.email());
         assertEquals("newToken", response.token());
@@ -152,7 +137,6 @@ class UserServiceTest {
 
     @Test
     void givenEmailOwnedByAnotherUser_whenUpdateProfile_shouldThrowIllegalStateException() {
-        // Arrange
         String oldEmail = "old@mail.com";
         String takenEmail = "taken@mail.com";
         mockSecurityContext(oldEmail);
@@ -165,18 +149,16 @@ class UserServiceTest {
         when(userRepository.findByEmail(oldEmail)).thenReturn(Optional.of(user));
         when(userRepository.existsByEmail(takenEmail)).thenReturn(true);
 
-        // Act & Assert
         assertThrows(IllegalStateException.class, () -> userService.updateProfile(request));
         verify(userRepository, never()).save(any());
     }
 
-    // ==========================================
     // APPROVAL & REGISTRATION WORKFLOW TESTS
-    // ==========================================
+    
 
     @Test
     void givenPendingUser_whenApproveUser_shouldProvisionProfileAndAccounts() {
-        // Arrange
+        
         Long userId = 1L;
         UserModel user = new UserModel();
         user.setId(userId);
@@ -195,10 +177,9 @@ class UserServiceTest {
         when(ibanGenerator.generateDutchIban()).thenReturn("NL01INHOChecking").thenReturn("NL01INHOSavings");
         when(accountRepository.save(any(AccountModel.class))).thenReturn(checkingAccount);
 
-        // Act
         userService.approveUser(userId);
 
-        // Assert
+
         assertTrue(user.getIsApproved());
         assertEquals("NL01INHOChecking", user.getIban());
         verify(customerProfileRepository).save(any(CustomerProfileModel.class));
@@ -214,34 +195,27 @@ class UserServiceTest {
         user.setIsApproved(true);
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
 
-        // Act
         userService.approveUser(userId);
 
-        // Assert
         verify(customerProfileRepository, never()).findByUserEmail(any());
         verify(accountRepository, never()).save(any());
     }
 
     @Test
     void givenExistingUser_whenDenyUser_shouldDeleteRecordFromDatabase() {
-        // Arrange
         Long userId = 1L;
         when(userRepository.existsById(userId)).thenReturn(true);
 
-        // Act
         userService.denyUser(userId);
 
-        // Assert
         verify(userRepository).deleteById(userId);
     }
 
     @Test
     void givenNonExistingUser_whenDenyUser_shouldThrowEntityNotFoundException() {
-        // Arrange
         Long userId = 99L;
         when(userRepository.existsById(userId)).thenReturn(false);
 
-        // Act & Assert
         assertThrows(EntityNotFoundException.class, () -> userService.denyUser(userId));
         verify(userRepository, never()).deleteById(userId);
     }

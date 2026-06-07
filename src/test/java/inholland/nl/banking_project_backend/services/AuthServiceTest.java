@@ -42,13 +42,10 @@ class AuthServiceTest {
     @InjectMocks
     private AuthService authService;
 
-    // ==========================================
     // REGISTER TESTS
-    // ==========================================
 
     @Test
     void givenValidRegistrationData_whenRegister_shouldReturnLoginResponse() {
-        // Arrange
         UserDTO.RegisterRequest request = validRegisterRequest("test@mail.com", "123456782");
         UserModel userEntity = new UserModel();
         userEntity.setEmail("test@mail.com");
@@ -60,10 +57,10 @@ class AuthServiceTest {
         when(userService.create(userEntity)).thenReturn(userEntity);
         when(jwtService.generateToken("test@mail.com", "ROLE_CUSTOMER")).thenReturn("mockedToken");
 
-        // Act
+    
         UserDTO.LoginResponse response = authService.register(request);
 
-        // Assert
+    
         assertNotNull(response);
         assertEquals("test@mail.com", response.email());
         assertEquals("mockedToken", response.token());
@@ -73,11 +70,10 @@ class AuthServiceTest {
 
     @Test
     void givenExistingEmail_whenRegister_shouldThrowConflictException() {
-        // Arrange
         UserDTO.RegisterRequest request = validRegisterRequest("existing@mail.com", "123456782");
         when(userService.existsByEmail(request.email())).thenReturn(true);
 
-        // Act & Assert
+        
         ResponseStatusException exception = assertThrows(ResponseStatusException.class, () -> {
             authService.register(request);
         });
@@ -89,11 +85,9 @@ class AuthServiceTest {
 
     @Test
     void givenInvalidBsn_whenRegister_shouldThrowBadRequestException() {
-        // Arrange
         UserDTO.RegisterRequest request = validRegisterRequest("test@mail.com", "123456789");
         when(userService.existsByEmail(request.email())).thenReturn(false);
 
-        // Act & Assert
         ResponseStatusException exception = assertThrows(ResponseStatusException.class, () -> {
             authService.register(request);
         });
@@ -103,13 +97,10 @@ class AuthServiceTest {
         verify(userService, never()).create(any());
     }
 
-    // ==========================================
     // LOGIN TESTS
-    // ==========================================
 
     @Test
     void givenValidCredentials_whenLogin_shouldReturnLoginResponse() {
-        // Arrange
         UserDTO.LoginRequest request = new UserDTO.LoginRequest("test@mail.com", "password123");
         UserModel userEntity = new UserModel();
         userEntity.setEmail("test@mail.com");
@@ -119,10 +110,8 @@ class AuthServiceTest {
         when(userService.findByEmail(request.email())).thenReturn(userEntity);
         when(jwtService.generateToken("test@mail.com", "ROLE_CUSTOMER")).thenReturn("mockedToken");
 
-        // Act
         UserDTO.LoginResponse response = authService.login(request);
 
-        // Assert
         assertNotNull(response);
         assertEquals("test@mail.com", response.email());
         assertEquals("mockedToken", response.token());
@@ -131,12 +120,11 @@ class AuthServiceTest {
 
     @Test
     void givenPendingAccount_whenLogin_shouldThrowForbiddenException() {
-        // Arrange
+        
         UserDTO.LoginRequest request = new UserDTO.LoginRequest("pending@mail.com", "password");
         when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
                 .thenThrow(new DisabledException("Disabled"));
 
-        // Act & Assert
         ResponseStatusException exception = assertThrows(ResponseStatusException.class, () -> {
             authService.login(request);
         });
@@ -148,12 +136,10 @@ class AuthServiceTest {
 
     @Test
     void givenBadCredentials_whenLogin_shouldThrowUnauthorizedException() {
-        // Arrange
         UserDTO.LoginRequest request = new UserDTO.LoginRequest("wrong@mail.com", "wrongpass");
         when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
                 .thenThrow(new BadCredentialsException("Bad credentials"));
 
-        // Act & Assert
         ResponseStatusException exception = assertThrows(ResponseStatusException.class, () -> {
             authService.login(request);
         });
