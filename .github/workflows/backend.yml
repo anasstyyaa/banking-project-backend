@@ -45,12 +45,12 @@ jobs:
       - name: Trigger Render deploy hook
         run: |
           curl -s -o response.json -w "%{http_code}" \
-            "${{ secrets.RENDER_DEPLOY_HOOK_URL }}" | \
+          "${{ secrets.RENDER_DEPLOY_HOOK_URL }}" | \
           tee status_code.txt
           STATUS=$(cat status_code.txt)
-          if [ "$STATUS" != "200" ] && [ "$STATUS" != "201" ]; then
-            echo "Render deploy hook failed with status $STATUS"
-            cat response.json
-            exit 1
+          if [ "$STATUS" != "200" ] && [ "$STATUS" != "201" ] && [ "$STATUS" != "202" ]; then
+          echo "Render deploy hook failed with status $STATUS"
+          cat response.json
+          exit 1
           fi
           echo "Deploy triggered successfully"
