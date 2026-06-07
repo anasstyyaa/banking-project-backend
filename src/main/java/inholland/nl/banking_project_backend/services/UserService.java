@@ -158,7 +158,7 @@ public class UserService implements UserDetailsService {
         );
     }
 
-    // Maps the updated customer profile and embeds a fresh token for the new email identity.
+    // Maps the updated customer profile and gives a new token for the new email 
     private UserDTO.UpdateProfileResponse toUpdateProfileResponse(UserModel user, String token) {
         List<AccountModel> accounts = getAccountsForProfile(user);
         BigDecimal totalBalance = accounts.stream()
