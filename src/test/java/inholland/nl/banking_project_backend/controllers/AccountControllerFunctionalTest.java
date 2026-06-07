@@ -16,6 +16,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 
 import java.math.BigDecimal;
 import java.util.Map;
@@ -130,6 +131,7 @@ class AccountControllerFunctionalTest {
         );
 
         mockMvc.perform(post("/api/v1/accounts")
+                        .with(csrf())
                         .with(user(employee))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -151,6 +153,7 @@ class AccountControllerFunctionalTest {
         );
 
         mockMvc.perform(post("/api/v1/accounts")
+                        .with(csrf())
                         .with(user(customer))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -169,6 +172,7 @@ class AccountControllerFunctionalTest {
         );
 
         mockMvc.perform(patch("/api/v1/accounts/{iban}/limits", "NL11INHO000000106")
+                        .with(csrf())
                         .with(user(employee))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
