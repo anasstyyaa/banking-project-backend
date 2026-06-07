@@ -1,19 +1,31 @@
 package inholland.nl.banking_project_backend.controllers;
 
-import inholland.nl.banking_project_backend.dtos.AccountDTO;
+import inholland.nl.banking_project_backend.dtos.AccountResponseDTO;
+import inholland.nl.banking_project_backend.dtos.AccountSearchResponseDTO;
+import inholland.nl.banking_project_backend.dtos.CreateAccountRequestDTO;
+import inholland.nl.banking_project_backend.dtos.UpdateAccountLimitsRequestDTO;
+import inholland.nl.banking_project_backend.models.RoleEnum;
+import inholland.nl.banking_project_backend.models.UserModel;
 import inholland.nl.banking_project_backend.services.AccountService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RequestParam;
-
-import java.security.Principal;
-import java.util.List;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/accounts")
@@ -22,25 +34,54 @@ import java.util.List;
 public class AccountController {
     private final AccountService accountService;
 
-
-    @Operation(summary = "Get visible accounts", description = "Returns own accounts for customers and all accounts for employees.")
+    // Returns active accounts visible to the authenticated user.
+    @Operation(summary = "Get visible accounts", description = "Returns own accounts for customers and all active accounts for employees.")
     @GetMapping
-    public ResponseEntity<List<AccountDTO.AccountResponse>> getAccounts(Principal principal) {
-        return ResponseEntity.ok(accountService.getAccountsForUser(principal.getName()));
+    public ResponseEntity<Page<AccountResponseDTO>> getAccounts(
+            @AuthenticationPrincipal UserModel currentUser,
+            @PageableDefault(size = 20) Pageable pageable
+    ) {
+        String ownerEmail = currentUser.getRole() == RoleEnum.ROLE_EMPLOYEE ? null : currentUser.getEmail();
+        return ResponseEntity.ok(accountService.getAccounts(ownerEmail, pageable));
     }
 
+    // Returns one active account visible to the authenticated user.
     @Operation(summary = "Get account by IBAN", description = "Returns one account if the authenticated user has access.")
     @GetMapping("/{iban}")
-    public ResponseEntity<AccountDTO.AccountResponse> getAccount(@PathVariable String iban, Principal principal) {
-        return ResponseEntity.ok(accountService.getAccountForUser(iban, principal.getName()));
+    public ResponseEntity<AccountResponseDTO> getAccount(
+            @PathVariable String iban,
+            @AuthenticationPrincipal UserModel currentUser
+    ) {
+        String ownerEmail = currentUser.getRole() == RoleEnum.ROLE_EMPLOYEE ? null : currentUser.getEmail();
+        return ResponseEntity.ok(accountService.getAccount(iban, ownerEmail));
     }
 
-    // search accounts by name
-    @Operation(summary = "Search accounts by customer name")
+    // Searches active accounts with a lightweight IBAN lookup response.
+    @Operation(summary = "Search accounts", description = "Searches active accounts by customer name or IBAN.")
     @GetMapping("/search")
-    public List<AccountDTO.AccountResponse> searchAccounts(@RequestParam String name) {
-        return accountService.searchAccountsByName(name);
+    public ResponseEntity<Page<AccountSearchResponseDTO>> searchAccounts(
+            @RequestParam String query,
+            @PageableDefault(size = 10) Pageable pageable
+    ) {
+        return ResponseEntity.ok(accountService.searchAccounts(query, pageable));
     }
 
+    // Creates a new customer account with employee-defined limits.
+    @Operation(summary = "Create account", description = "Creates a new customer account with employee-defined limits.")
+    @PostMapping
+    @PreAuthorize("hasRole('EMPLOYEE')")
+    public ResponseEntity<AccountResponseDTO> createAccount(@Valid @RequestBody CreateAccountRequestDTO request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(accountService.createAccount(request));
+    }
 
+    // Updates absolute and daily transfer limits for an active account.
+    @Operation(summary = "Update account limits", description = "Allows an employee to update absolute and daily transfer limits.")
+    @PatchMapping("/{iban}/limits")
+    @PreAuthorize("hasRole('EMPLOYEE')")
+    public ResponseEntity<AccountResponseDTO> updateLimits(
+            @PathVariable String iban,
+            @Valid @RequestBody UpdateAccountLimitsRequestDTO request
+    ) {
+        return ResponseEntity.ok(accountService.updateLimits(iban, request));
+    }
 }

@@ -1,6 +1,7 @@
 package inholland.nl.banking_project_backend.mappers;
 
-import inholland.nl.banking_project_backend.dtos.TransactionDTO;
+import inholland.nl.banking_project_backend.dtos.CreateTransactionRequestDTO;
+import inholland.nl.banking_project_backend.dtos.TransactionResponseDTO;
 import inholland.nl.banking_project_backend.enums.TransactionTypeEnum;
 import inholland.nl.banking_project_backend.models.AccountModel;
 import inholland.nl.banking_project_backend.models.TransactionModel;
@@ -15,7 +16,7 @@ public class TransactionMapper {
 
     // Creates a transaction entity with stable IBAN snapshots for history.
     public TransactionModel toModel(
-            TransactionDTO.CreateRequest request,
+            CreateTransactionRequestDTO request,
             AccountModel fromAccount,
             AccountModel toAccount,
             UserModel initiatedBy
@@ -33,8 +34,8 @@ public class TransactionMapper {
     }
 
     // Converts a transaction entity into a frontend-safe transaction response.
-    public TransactionDTO.TransactionResponse toResponse(TransactionModel transaction) {
-        return new TransactionDTO.TransactionResponse(
+    public TransactionResponseDTO toResponse(TransactionModel transaction) {
+        return new TransactionResponseDTO(
                 transaction.getId(),
                 transaction.getType(),
                 transaction.getFromIbanSnapshot(),

@@ -70,6 +70,11 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(error, HttpStatus.UNAUTHORIZED);
     }
 
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ErrorResponseDTO> handleIllegalArgument(IllegalArgumentException ex) {
+        return buildError(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+
     // handles missing account errors from account and transaction services
     @ExceptionHandler(AccountNotFoundException.class)
     public ResponseEntity<ErrorResponseDTO> handleAccountNotFound(AccountNotFoundException ex) {
@@ -95,7 +100,7 @@ public class GlobalExceptionHandler {
     }
 
     // handles absolute and daily limit errors
-    @ExceptionHandler({AbsoluteLimitExceededException.class, DailyLimitExceededException.class})
+    @ExceptionHandler({AbsoluteLimitExceededException.class, DailyLimitExceededException.class, LimitExceededException.class})
     public ResponseEntity<ErrorResponseDTO> handleLimitExceeded(RuntimeException ex) {
         return buildError(HttpStatusCode.valueOf(422), ex.getMessage());
     }
