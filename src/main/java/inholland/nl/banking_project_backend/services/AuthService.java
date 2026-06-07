@@ -30,6 +30,10 @@ public class AuthService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already exists");
         }
 
+        if (!isValidBSN(dto.bsn())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "bsn: The provided BSN is mathematically invalid");
+        }
+
         UserModel newUser = userMapper.toEntity(dto);
         newUser.setPassword(passwordEncoder.encode(dto.password()));
 
@@ -73,5 +77,17 @@ public class AuthService {
                 token,
                 user.getRole()
         );
+    }
+
+    private boolean isValidBSN(String bsn) {
+        if (bsn == null || bsn.length() != 9) return false;
+
+        int sum = 0;
+        for (int i = 0; i < 8; i++) {
+            sum += Character.getNumericValue(bsn.charAt(i)) * (9 - i);
+        }
+        sum -= Character.getNumericValue(bsn.charAt(8));
+
+        return sum % 11 == 0;
     }
 }

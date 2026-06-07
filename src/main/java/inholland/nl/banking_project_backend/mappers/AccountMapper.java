@@ -1,28 +1,22 @@
 package inholland.nl.banking_project_backend.mappers;
 
-import inholland.nl.banking_project_backend.dtos.AccountDTO;
+import inholland.nl.banking_project_backend.dtos.AccountResponseDTO;
+import inholland.nl.banking_project_backend.dtos.AccountSearchResponseDTO;
 import inholland.nl.banking_project_backend.models.AccountModel;
-import org.springframework.stereotype.Component;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+import org.mapstruct.ReportingPolicy;
 
-@Component
-public class AccountMapper {
 
-    // Converts an account entity into a frontend-safe account response.
-    public AccountDTO.AccountResponse toResponse(AccountModel account) {
-        return new AccountDTO.AccountResponse(
-                account.getIban(),
-                account.getType(),
-                account.getBalance(),
-                account.getIsActive(),
-                account.getAbsoluteLimit(),
-                account.getDailyLimit(),
-                account.getCustomer().getUser().getEmail(),
-                getCustomerName(account)
-        );
-    }
+@Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.IGNORE)
+public interface AccountMapper {
 
-    // Builds the customer's display name from the account owner.
-    private String getCustomerName(AccountModel account) {
-        return account.getCustomer().getUser().getFirstName() + " " + account.getCustomer().getUser().getLastName();
-    }
+    // Converts a full account entity into an account management response.
+    @Mapping(target = "customerEmail", source = "account.customer.user.email")
+    @Mapping(target = "customerName", expression = "java(account.getCustomer().getUser().getFirstName() + \" \" + account.getCustomer().getUser().getLastName())")
+    AccountResponseDTO toResponse(AccountModel account);
+
+    // Converts an account entity into the lightweight account search response.
+    @Mapping(target = "customerName", expression = "java(account.getCustomer().getUser().getFirstName() + \" \" + account.getCustomer().getUser().getLastName())")
+    AccountSearchResponseDTO toSearchResponse(AccountModel account);
 }

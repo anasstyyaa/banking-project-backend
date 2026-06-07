@@ -1,279 +1,140 @@
 package inholland.nl.banking_project_backend.services;
 
-import inholland.nl.banking_project_backend.dtos.TransactionDTO;
+import inholland.nl.banking_project_backend.dtos.CreateTransactionRequestDTO;
+import inholland.nl.banking_project_backend.dtos.TransactionFilterRequestDTO;
+import inholland.nl.banking_project_backend.dtos.TransactionResponseDTO;
 import inholland.nl.banking_project_backend.enums.TransactionTypeEnum;
-import inholland.nl.banking_project_backend.exceptions.AbsoluteLimitExceededException;
-import inholland.nl.banking_project_backend.exceptions.DailyLimitExceededException;
-import inholland.nl.banking_project_backend.exceptions.InvalidTransactionException;
-import inholland.nl.banking_project_backend.exceptions.UnauthorizedAccountAccessException;
 import inholland.nl.banking_project_backend.mappers.TransactionMapper;
 import inholland.nl.banking_project_backend.models.AccountModel;
-import inholland.nl.banking_project_backend.models.RoleEnum;
 import inholland.nl.banking_project_backend.models.TransactionModel;
 import inholland.nl.banking_project_backend.models.UserModel;
+import inholland.nl.banking_project_backend.policies.TransactionPolicy;
+import inholland.nl.banking_project_backend.repositories.AccountRepository;
 import inholland.nl.banking_project_backend.repositories.TransactionRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class TransactionService {
     private final TransactionRepository transactionRepository;
-    private final AccountService accountService;
-    private final UserService userService;
+    private final AccountRepository accountRepository;
     private final TransactionMapper transactionMapper;
+    private final TransactionPolicy transactionPolicy;
 
-    // Creates a transfer, deposit, or withdrawal for the authenticated user.
+    // Creates a transaction using an optional owner scope from the controller.
     @Transactional
-    public TransactionDTO.TransactionResponse createTransaction(TransactionDTO.CreateRequest request, String userEmail) {
-        validateAmount(request.amount());
-        UserModel user = userService.findByEmail(userEmail);
+    public TransactionResponseDTO createTransaction(CreateTransactionRequestDTO request, UserModel initiatedBy, String ownerEmail) {
+        if (ownerEmail == null && request.type() != TransactionTypeEnum.TRANSFER) {
+            throw new IllegalArgumentException("Only transfers can be created for customer accounts by staff.");
+        }
+
         return switch (request.type()) {
-            case TRANSFER -> handleTransfer(request, user);
-            case DEPOSIT -> handleDeposit(request, user);
-            case WITHDRAWAL -> handleWithdrawal(request, user);
+            case TRANSFER -> createTransfer(request, initiatedBy, ownerEmail);
+            case DEPOSIT -> createDeposit(request, initiatedBy, ownerEmail);
+            case WITHDRAWAL -> createWithdrawal(request, initiatedBy, ownerEmail);
         };
     }
 
-    // Returns transactions visible to the authenticated user after applying filters.
-    public List<TransactionDTO.TransactionResponse> getTransactions(TransactionDTO.FilterRequest filter, String userEmail) {
-        UserModel user = userService.findByEmail(userEmail);
-        return loadTransactions(filter).stream()
-                .filter(transaction -> canViewTransaction(user, transaction))
-                .filter(transaction -> matchesAmountFilters(transaction, filter))
-                .filter(transaction -> matchesIbanFilter(transaction, filter.iban()))
-                .map(transactionMapper::toResponse)
-                .toList();
+    // Returns transactions using repository filters and an optional viewer scope.
+    public Page<TransactionResponseDTO> getTransactions(TransactionFilterRequestDTO filter, String viewerEmail, Pageable pageable) {
+        LocalDateTime start = filter.startDate() == null ? LocalDateTime.of(1970, 1, 1, 0, 0) : filter.startDate().atStartOfDay();
+        LocalDateTime end = filter.endDate() == null ? LocalDateTime.now().plusDays(1) : filter.endDate().atTime(LocalTime.MAX);
+        return transactionRepository.findTransactions(
+                        start,
+                        end,
+                        viewerEmail,
+                        filter.amountLessThan(),
+                        filter.amountGreaterThan(),
+                        filter.amountEqualTo(),
+                        blankToNull(filter.iban()),
+                        filter.userId(),
+                        pageable
+                )
+                .map(transactionMapper::toResponse);
     }
 
-    // Returns one transaction when the authenticated user may view it.
-    public TransactionDTO.TransactionResponse getTransactionById(Long id, String userEmail) {
-        UserModel user = userService.findByEmail(userEmail);
-        TransactionModel transaction = findTransaction(id);
-        validateCanViewTransaction(user, transaction);
+    // Returns one transaction using an optional viewer scope.
+    public TransactionResponseDTO getTransaction(Long id, String viewerEmail) {
+        TransactionModel transaction = transactionRepository.findTransactionById(id, viewerEmail)
+                .orElseThrow(() -> new EntityNotFoundException("Transaction not found."));
         return transactionMapper.toResponse(transaction);
     }
 
-    // Handles a transfer between two active bank accounts.
-    private TransactionDTO.TransactionResponse handleTransfer(TransactionDTO.CreateRequest request, UserModel user) {
-        validateTransferFields(request);
-        AccountModel source = accountService.getActiveAccount(request.fromIban());
-        AccountModel destination = accountService.getActiveAccount(request.toIban());
-        validateDifferentAccounts(source, destination);
-        validateOutgoingTransaction(user, source, request.amount());
-        accountService.debit(source, request.amount());
-        accountService.credit(destination, request.amount());
-        return saveCompletedTransaction(request, source, destination, user);
-    }
+    // Handles a transfer using scoped account lookup when the caller is a customer.
+    private TransactionResponseDTO createTransfer(CreateTransactionRequestDTO request, UserModel initiatedBy, String ownerEmail) {
+        AccountModel source = findAccount(request.fromIban(), ownerEmail, "Source account not found.");
+        AccountModel destination = findAccount(request.toIban(), null, "Destination account not found.");
 
-    // Handles an ATM deposit into an active account.
-    private TransactionDTO.TransactionResponse handleDeposit(TransactionDTO.CreateRequest request, UserModel user) {
-        validateDepositFields(request);
-        AccountModel destination = accountService.getActiveAccount(request.toIban());
-        accountService.validateCanUseAccount(user, destination);
-        accountService.credit(destination, request.amount());
-        return saveCompletedTransaction(request, null, destination, user);
-    }
-
-    // Handles an ATM withdrawal from an active account.
-    private TransactionDTO.TransactionResponse handleWithdrawal(TransactionDTO.CreateRequest request, UserModel user) {
-        validateWithdrawalFields(request);
-        AccountModel source = accountService.getActiveAccount(request.fromIban());
-        validateOutgoingTransaction(user, source, request.amount());
-        accountService.debit(source, request.amount());
-        return saveCompletedTransaction(request, source, null, user);
-    }
-
-    // Validates that the transaction amount is positive.
-    private void validateAmount(BigDecimal amount) {
-        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new InvalidTransactionException("Transaction amount must be greater than zero.");
+        if (ownerEmail == null) {
+            transactionPolicy.validateEmployeeTransfer(request, source, destination);
+        } else {
+            transactionPolicy.validateCustomerTransfer(request, source, destination);
         }
+
+        transferFunds(source, destination, request.amount());
+        return saveTransaction(request, source, destination, initiatedBy);
     }
 
-    // Validates required fields for transfer transactions.
-    private void validateTransferFields(TransactionDTO.CreateRequest request) {
-        if (isBlank(request.fromIban()) || isBlank(request.toIban())) {
-            throw new InvalidTransactionException("Transfer requires both source and destination IBAN.");
+    // Handles an ATM deposit into an account within the caller scope.
+    private TransactionResponseDTO createDeposit(CreateTransactionRequestDTO request, UserModel initiatedBy, String ownerEmail) {
+        AccountModel destination = findAccount(request.toIban(), ownerEmail, "Destination account not found.");
+
+        transactionPolicy.validateDeposit(request, destination);
+        destination.setBalance(destination.getBalance().add(request.amount()));
+        accountRepository.save(destination);
+        return saveTransaction(request, null, destination, initiatedBy);
+    }
+
+    // Handles an ATM withdrawal from an account within the caller scope.
+    private TransactionResponseDTO createWithdrawal(CreateTransactionRequestDTO request, UserModel initiatedBy, String ownerEmail) {
+        AccountModel source = findAccount(request.fromIban(), ownerEmail, "Source account not found.");
+
+        transactionPolicy.validateWithdrawal(request, source);
+        source.setBalance(source.getBalance().subtract(request.amount()));
+        accountRepository.save(source);
+        return saveTransaction(request, source, null, initiatedBy);
+    }
+
+    // Finds an account when an IBAN was provided, otherwise lets policy report the missing field.
+    private AccountModel findAccount(String iban, String ownerEmail, String notFoundMessage) {
+        if (iban == null || iban.isBlank()) {
+            return null;
         }
+
+        return accountRepository.findAccountByIban(iban, ownerEmail)
+                .orElseThrow(() -> new EntityNotFoundException(notFoundMessage));
     }
 
-    // Validates required fields for deposit transactions.
-    private void validateDepositFields(TransactionDTO.CreateRequest request) {
-        if (isBlank(request.toIban())) {
-            throw new InvalidTransactionException("Deposit requires a destination IBAN.");
-        }
+    // Moves money between two managed account entities.
+    private void transferFunds(AccountModel source, AccountModel destination, BigDecimal amount) {
+        source.setBalance(source.getBalance().subtract(amount));
+        destination.setBalance(destination.getBalance().add(amount));
+        accountRepository.save(source);
+        accountRepository.save(destination);
     }
 
-    // Validates required fields for withdrawal transactions.
-    private void validateWithdrawalFields(TransactionDTO.CreateRequest request) {
-        if (isBlank(request.fromIban())) {
-            throw new InvalidTransactionException("Withdrawal requires a source IBAN.");
-        }
-    }
-
-    // Prevents transferring money to the same account.
-    private void validateDifferentAccounts(AccountModel source, AccountModel destination) {
-        if (source.getIban().equals(destination.getIban())) {
-            throw new InvalidTransactionException("Source and destination accounts must be different.");
-        }
-    }
-
-    // Applies account access, absolute limit, and daily outgoing limit checks.
-    private void validateOutgoingTransaction(UserModel user, AccountModel source, BigDecimal amount) {
-        accountService.validateCanUseAccount(user, source);
-        validateSourceAccountCanSend(user);
-        validateAbsoluteLimit(source, amount);
-        validateDailyLimit(source, amount);
-    }
-
-    // Ensures customers are approved before sending money.
-    private void validateSourceAccountCanSend(UserModel user) {
-        if (user.getRole() == RoleEnum.ROLE_EMPLOYEE) {
-            return;
-        }
-        if (!Boolean.TRUE.equals(user.getIsApproved())) {
-            throw new UnauthorizedAccountAccessException("Your account must be approved before making transactions.");
-        }
-    }
-
-    // Rejects transactions that would move the balance below the account's absolute limit.
-    private void validateAbsoluteLimit(AccountModel source, BigDecimal amount) {
-        BigDecimal balanceAfterTransaction = source.getBalance().subtract(amount);
-        if (balanceAfterTransaction.compareTo(source.getAbsoluteLimit()) < 0) {
-            throw new AbsoluteLimitExceededException("This transaction exceeds the account absolute limit.");
-        }
-    }
-
-    // Rejects transactions that exceed the account's daily outgoing limit.
-    private void validateDailyLimit(AccountModel source, BigDecimal amount) {
-        BigDecimal dailyTotal = getDailyOutgoingTotal(source);
-        if (dailyTotal.add(amount).compareTo(source.getDailyLimit()) > 0) {
-            throw new DailyLimitExceededException("This transaction exceeds the account daily limit.");
-        }
-    }
-
-    // Sums today's outgoing transfer and withdrawal amounts for an account.
-    private BigDecimal getDailyOutgoingTotal(AccountModel source) {
-        LocalDateTime start = LocalDate.now().atStartOfDay();
-        LocalDateTime end = LocalDate.now().atTime(LocalTime.MAX);
-        return transactionRepository.findByFromIbanSnapshotAndTimestampBetween(source.getIban(), start, end)
-                .stream()
-                .filter(this::isOutgoingTransaction)
-                .map(TransactionModel::getAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-    }
-
-    // Returns whether the transaction counts against outgoing daily limits.
-    private boolean isOutgoingTransaction(TransactionModel transaction) {
-        return transaction.getType() == TransactionTypeEnum.TRANSFER
-                || transaction.getType() == TransactionTypeEnum.WITHDRAWAL;
-    }
-
-    // Saves changed accounts and the final transaction record together.
-    private TransactionDTO.TransactionResponse saveCompletedTransaction(
-            TransactionDTO.CreateRequest request,
+    // Stores the final transaction record after account balances are changed.
+    private TransactionResponseDTO saveTransaction(
+            CreateTransactionRequestDTO request,
             AccountModel source,
             AccountModel destination,
-            UserModel user
+            UserModel initiatedBy
     ) {
-        saveChangedAccount(source);
-        saveChangedAccount(destination);
-        TransactionModel transaction = transactionMapper.toModel(request, source, destination, user);
-        TransactionModel savedTransaction = transactionRepository.save(transaction);
-        return transactionMapper.toResponse(savedTransaction);
+        TransactionModel transaction = transactionMapper.toModel(request, source, destination, initiatedBy);
+        return transactionMapper.toResponse(transactionRepository.save(transaction));
     }
 
-    // Persists an account only when this transaction changed it.
-    private void saveChangedAccount(AccountModel account) {
-        if (account != null) {
-            accountService.save(account);
-        }
-    }
-
-    // Loads transactions inside the requested date range.
-    private List<TransactionModel> loadTransactions(TransactionDTO.FilterRequest filter) {
-        LocalDateTime start = getStartDateTime(filter.startDate());
-        LocalDateTime end = getEndDateTime(filter.endDate());
-        return transactionRepository.findByTimestampBetweenOrderByTimestampDesc(start, end);
-    }
-
-    // Converts an optional start date into a query boundary.
-    private LocalDateTime getStartDateTime(LocalDate startDate) {
-        return startDate == null ? LocalDateTime.of(1970, 1, 1, 0, 0) : startDate.atStartOfDay();
-    }
-
-    // Converts an optional end date into a query boundary.
-    private LocalDateTime getEndDateTime(LocalDate endDate) {
-        return endDate == null ? LocalDateTime.now().plusDays(1) : endDate.atTime(LocalTime.MAX);
-    }
-
-    // Checks whether the user may view a transaction.
-    private boolean canViewTransaction(UserModel user, TransactionModel transaction) {
-        if (user.getRole() == RoleEnum.ROLE_EMPLOYEE) {
-            return true;
-        }
-        return ownsTransactionAccount(user, transaction.getFromAccount())
-                || ownsTransactionAccount(user, transaction.getToAccount());
-    }
-
-    // Throws when the user may not view the transaction.
-    private void validateCanViewTransaction(UserModel user, TransactionModel transaction) {
-        if (!canViewTransaction(user, transaction)) {
-            throw new UnauthorizedAccountAccessException("You are not allowed to view this transaction.");
-        }
-    }
-
-    // Checks whether a transaction account belongs to the user.
-    private boolean ownsTransactionAccount(UserModel user, AccountModel account) {
-        return account != null && account.getCustomer().getUser().getEmail().equals(user.getEmail());
-    }
-
-    // Applies optional amount filters to a transaction.
-    private boolean matchesAmountFilters(TransactionModel transaction, TransactionDTO.FilterRequest filter) {
-        return matchesLessThan(transaction, filter.amountLessThan())
-                && matchesGreaterThan(transaction, filter.amountGreaterThan())
-                && matchesEqualTo(transaction, filter.amountEqualTo());
-    }
-
-    // Checks the optional less-than amount filter.
-    private boolean matchesLessThan(TransactionModel transaction, BigDecimal amount) {
-        return amount == null || transaction.getAmount().compareTo(amount) < 0;
-    }
-
-    // Checks the optional greater-than amount filter.
-    private boolean matchesGreaterThan(TransactionModel transaction, BigDecimal amount) {
-        return amount == null || transaction.getAmount().compareTo(amount) > 0;
-    }
-
-    // Checks the optional equal-to amount filter.
-    private boolean matchesEqualTo(TransactionModel transaction, BigDecimal amount) {
-        return amount == null || transaction.getAmount().compareTo(amount) == 0;
-    }
-
-    // Applies optional IBAN filtering against source or destination snapshots.
-    private boolean matchesIbanFilter(TransactionModel transaction, String iban) {
-        return isBlank(iban)
-                || iban.equals(transaction.getFromIbanSnapshot())
-                || iban.equals(transaction.getToIbanSnapshot());
-    }
-
-    // Loads a transaction by id or throws a clean not-found error.
-    private TransactionModel findTransaction(Long id) {
-        return transactionRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Transaction not found."));
-    }
-
-    // Checks whether text is missing or only whitespace.
-    private boolean isBlank(String value) {
-        return value == null || value.isBlank();
+    // Normalizes blank query parameters before repository filtering.
+    private String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value;
     }
 }
