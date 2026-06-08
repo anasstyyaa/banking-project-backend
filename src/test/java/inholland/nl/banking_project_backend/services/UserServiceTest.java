@@ -41,6 +41,8 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.isNull;
+
 
 @ExtendWith(MockitoExtension.class)
 class UserServiceTest {
@@ -131,7 +133,7 @@ class UserServiceTest {
         when(userRepository.existsByEmail(newEmail)).thenReturn(false);
         when(userRepository.save(any(UserModel.class))).thenReturn(savedUser);
         when(jwtService.generateToken(newEmail, "ROLE_CUSTOMER")).thenReturn("newToken");
-        when(accountRepository.findAccounts(eq(newEmail), any(Pageable.class)))
+        when(accountRepository.findAccounts(eq(newEmail), isNull(), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(Collections.emptyList()));
 
         UserDTO.UpdateProfileResponse response = userService.updateProfile(request);
