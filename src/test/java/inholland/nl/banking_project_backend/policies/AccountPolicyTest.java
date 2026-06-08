@@ -89,6 +89,25 @@ class AccountPolicyTest {
                 () -> accountPolicy.validateLimitUpdate(account, request));
     }
 
+    // Zero-balance open accounts can be closed.
+    @Test
+    void validateAccountClosure_allowsOpenZeroBalanceAccount() {
+        AccountModel account = openAccount();
+        account.setBalance(BigDecimal.ZERO);
+
+        assertDoesNotThrow(() -> accountPolicy.validateAccountClosure(account));
+    }
+
+    // Accounts with money still on them cannot be closed.
+    @Test
+    void validateAccountClosure_throwsForNonZeroBalance() {
+        AccountModel account = openAccount();
+        account.setBalance(new BigDecimal("10.00"));
+
+        assertThrows(IllegalStateException.class,
+                () -> accountPolicy.validateAccountClosure(account));
+    }
+
     private AccountModel openAccount() {
         AccountModel account = new AccountModel();
         account.setIsActive(true);

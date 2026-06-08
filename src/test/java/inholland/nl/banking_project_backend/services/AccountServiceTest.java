@@ -36,6 +36,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.doThrow;
 
 @ExtendWith(MockitoExtension.class)
 class AccountServiceTest {
@@ -176,6 +177,34 @@ class AccountServiceTest {
         Page<AccountSearchResponseDTO> result = accountService.searchAccounts("customer", pageable);
 
         assertEquals(searchResponse, result.getContent().getFirst());
+    }
+
+    // Account closure validates policy, marks the account inactive, saves, and maps the saved account.
+    @Test
+    void closeAccount_marksAccountInactiveAndSaves() {
+        account.setBalance(BigDecimal.ZERO);
+        when(accountRepository.findAccountByIban(account.getIban(), null)).thenReturn(Optional.of(account));
+        when(accountRepository.save(account)).thenReturn(account);
+        when(accountMapper.toResponse(account)).thenReturn(accountResponse);
+
+        AccountResponseDTO result = accountService.closeAccount(account.getIban());
+
+        assertEquals(accountResponse, result);
+        assertEquals(false, account.getIsActive());
+        verify(accountPolicy).validateAccountClosure(account);
+        verify(accountRepository).save(account);
+    }
+
+    // Account closure stops before persistence when the policy rejects the account.
+    @Test
+    void closeAccount_policyFailureDoesNotSave() {
+        when(accountRepository.findAccountByIban(account.getIban(), null)).thenReturn(Optional.of(account));
+        doThrow(new IllegalStateException("Cannot close an account with a non-zero balance."))
+                .when(accountPolicy).validateAccountClosure(account);
+
+        assertThrows(IllegalStateException.class, () -> accountService.closeAccount(account.getIban()));
+
+        verify(accountRepository, never()).save(any());
     }
 
     private CreateAccountRequestDTO createAccountRequest() {

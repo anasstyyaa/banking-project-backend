@@ -144,6 +144,27 @@ class TransactionServiceTest {
         verify(accountRepository).save(destination);
     }
 
+    // Withdrawals update only the source balance and store the transaction.
+    @Test
+    void createTransaction_withdrawal_updatesSourceBalance() {
+        CreateTransactionRequestDTO request = new CreateTransactionRequestDTO(
+                TransactionTypeEnum.WITHDRAWAL,
+                source.getIban(),
+                null,
+                new BigDecimal("75.00")
+        );
+        when(accountRepository.findAccountByIban(source.getIban(), user.getEmail())).thenReturn(Optional.of(source));
+        when(transactionMapper.toModel(request, source, null, user)).thenReturn(transaction);
+        when(transactionRepository.save(transaction)).thenReturn(transaction);
+        when(transactionMapper.toResponse(transaction)).thenReturn(response);
+
+        transactionService.createTransaction(request, user, user.getEmail());
+
+        assertEquals(new BigDecimal("925.00"), source.getBalance());
+        verify(transactionPolicy).validateWithdrawal(request, source);
+        verify(accountRepository).save(source);
+    }
+
     // Policy failures stop balance persistence and transaction persistence.
     @Test
     void createTransaction_policyFailureDoesNotSaveAnything() {

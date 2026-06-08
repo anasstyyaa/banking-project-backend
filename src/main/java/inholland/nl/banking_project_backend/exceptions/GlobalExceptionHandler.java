@@ -75,6 +75,11 @@ public class GlobalExceptionHandler {
         return buildError(HttpStatus.BAD_REQUEST, ex.getMessage());
     }
 
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<ErrorResponseDTO> handleIllegalState(IllegalStateException ex) {
+        return buildError(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+
     // handles all domain/business exceptions — each carries its own HTTP status
     @ExceptionHandler(BankingException.class)
     public ResponseEntity<ErrorResponseDTO> handleBankingException(BankingException ex) {
