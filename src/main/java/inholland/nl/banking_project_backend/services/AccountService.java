@@ -4,6 +4,7 @@ import inholland.nl.banking_project_backend.dtos.AccountResponseDTO;
 import inholland.nl.banking_project_backend.dtos.AccountSearchResponseDTO;
 import inholland.nl.banking_project_backend.dtos.CreateAccountRequestDTO;
 import inholland.nl.banking_project_backend.dtos.UpdateAccountLimitsRequestDTO;
+import inholland.nl.banking_project_backend.exceptions.CustomerProfileNotFoundException;
 import inholland.nl.banking_project_backend.mappers.AccountMapper;
 import inholland.nl.banking_project_backend.models.AccountModel;
 import inholland.nl.banking_project_backend.models.CustomerProfileModel;
@@ -42,7 +43,7 @@ public class AccountService {
         accountPolicy.validateAccountCreation(user, request);
 
         CustomerProfileModel profile = customerProfileRepository.findByUserEmail(user.getEmail())
-                .orElseThrow(() -> new EntityNotFoundException("Customer profile not found."));
+                .orElseThrow(() -> new CustomerProfileNotFoundException("Customer profile not found for user: " + user.getEmail()));
 
         AccountModel account = new AccountModel();
         account.setCustomer(profile);
@@ -58,7 +59,7 @@ public class AccountService {
         return accountMapper.toResponse(savedAccount);
     }
 
-    // Returns open accounts using an optional owner scope.
+    // Returns open accounts using an optional owner scope, if an emplyee return all, if owner only shows the specific thing for that owner.
     public Page<AccountResponseDTO> getAccounts(String ownerEmail, Pageable pageable) {
         return accountRepository.findAccounts(ownerEmail, pageable)
                 .map(accountMapper::toResponse);

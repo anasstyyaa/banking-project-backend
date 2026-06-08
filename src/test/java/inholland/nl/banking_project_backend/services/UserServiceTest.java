@@ -3,6 +3,7 @@ package inholland.nl.banking_project_backend.services;
 import inholland.nl.banking_project_backend.dtos.UserDTO;
 import inholland.nl.banking_project_backend.enums.AccountTypeEnum;
 import inholland.nl.banking_project_backend.enums.RegistrationDecisionEnum;
+import inholland.nl.banking_project_backend.exceptions.UserAlreadyExistsException;
 import inholland.nl.banking_project_backend.models.AccountModel;
 import inholland.nl.banking_project_backend.models.CustomerProfileModel;
 import inholland.nl.banking_project_backend.models.RoleEnum;
@@ -21,11 +22,15 @@ import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+
 
 import java.math.BigDecimal;
 import java.util.Collections;
@@ -138,7 +143,7 @@ class UserServiceTest {
     }
 
     @Test
-    void givenEmailOwnedByAnotherUser_whenUpdateProfile_shouldThrowIllegalStateException() {
+    void givenEmailOwnedByAnotherUser_whenUpdateProfile_shouldThrowUserAlreadyExistsException() {
         String oldEmail = "old@mail.com";
         String takenEmail = "taken@mail.com";
         mockSecurityContext(oldEmail);
@@ -151,7 +156,11 @@ class UserServiceTest {
         when(userRepository.findByEmail(oldEmail)).thenReturn(Optional.of(user));
         when(userRepository.existsByEmail(takenEmail)).thenReturn(true);
 
-        assertThrows(IllegalStateException.class, () -> userService.updateProfile(request));
+        UserAlreadyExistsException exception = assertThrows(UserAlreadyExistsException.class,
+                () -> userService.updateProfile(request));
+
+        assertEquals(HttpStatus.CONFLICT, exception.getStatus());
+        assertEquals("This email is already used by another account.", exception.getMessage());
         verify(userRepository, never()).save(any());
     }
 
@@ -291,5 +300,75 @@ class UserServiceTest {
             assertEquals(new BigDecimal("-500.00"), account.getAbsoluteLimit());
             assertEquals(new BigDecimal("1000.00"), account.getDailyLimit());
         }
+    }
+
+    // Pending user search passes the term and isApproved=false to the repository.
+    @Test
+    void givenSearchTerm_whenGetPendingUsers_shouldReturnMatchingPendingUsers() {
+        Pageable pageable = PageRequest.of(0, 20);
+        UserModel user = new UserModel();
+        user.setEmail("pending@example.com");
+        user.setFirstName("Jan");
+        user.setIsApproved(false);
+
+        when(userRepository.findByApprovalStatus(false, "Jan", pageable))
+                .thenReturn(new PageImpl<>(List.of(user), pageable, 1));
+
+        Page<UserModel> result = userService.getPendingUsers("Jan", pageable);
+
+        assertEquals(1, result.getTotalElements());
+        assertEquals("pending@example.com", result.getContent().getFirst().getEmail());
+        verify(userRepository).findByApprovalStatus(false, "Jan", pageable);
+    }
+
+    // Null search term returns all pending users without filtering.
+    @Test
+    void givenNullSearch_whenGetPendingUsers_shouldReturnAllPendingUsers() {
+        Pageable pageable = PageRequest.of(0, 20);
+        UserModel user1 = new UserModel();
+        user1.setEmail("a@example.com");
+        UserModel user2 = new UserModel();
+        user2.setEmail("b@example.com");
+
+        when(userRepository.findByApprovalStatus(false, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(user1, user2), pageable, 2));
+
+        Page<UserModel> result = userService.getPendingUsers(null, pageable);
+
+        assertEquals(2, result.getTotalElements());
+        verify(userRepository).findByApprovalStatus(false, null, pageable);
+    }
+
+    // Active user search passes the term and isApproved=true to the repository.
+    @Test
+    void givenSearchTerm_whenGetActiveUsers_shouldReturnMatchingActiveUsers() {
+        Pageable pageable = PageRequest.of(0, 20);
+        UserModel user = new UserModel();
+        user.setEmail("active@example.com");
+        user.setFirstName("Maria");
+        user.setIsApproved(true);
+
+        when(userRepository.findByApprovalStatus(true, "Maria", pageable))
+                .thenReturn(new PageImpl<>(List.of(user), pageable, 1));
+
+        Page<UserModel> result = userService.getActiveUsers("Maria", pageable);
+
+        assertEquals(1, result.getTotalElements());
+        assertEquals("active@example.com", result.getContent().getFirst().getEmail());
+        verify(userRepository).findByApprovalStatus(true, "Maria", pageable);
+    }
+
+    // Null search term returns all active users without filtering.
+    @Test
+    void givenNullSearch_whenGetActiveUsers_shouldReturnAllActiveUsers() {
+        Pageable pageable = PageRequest.of(0, 20);
+
+        when(userRepository.findByApprovalStatus(true, null, pageable))
+                .thenReturn(new PageImpl<>(Collections.emptyList(), pageable, 0));
+
+        Page<UserModel> result = userService.getActiveUsers(null, pageable);
+
+        assertEquals(0, result.getTotalElements());
+        verify(userRepository).findByApprovalStatus(true, null, pageable);
     }
 }

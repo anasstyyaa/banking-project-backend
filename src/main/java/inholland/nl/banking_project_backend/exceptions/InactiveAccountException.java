@@ -1,7 +1,9 @@
 package inholland.nl.banking_project_backend.exceptions;
 
-public class InactiveAccountException extends RuntimeException {
+import org.springframework.http.HttpStatus;
+
+public class InactiveAccountException extends BankingException {
     public InactiveAccountException(String message) {
-        super(message);
+        super(HttpStatus.CONFLICT, message);
     }
 }

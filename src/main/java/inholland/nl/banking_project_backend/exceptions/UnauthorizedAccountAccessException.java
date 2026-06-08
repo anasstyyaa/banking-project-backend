@@ -1,7 +1,9 @@
 package inholland.nl.banking_project_backend.exceptions;
 
-public class UnauthorizedAccountAccessException extends RuntimeException {
+import org.springframework.http.HttpStatus;
+
+public class UnauthorizedAccountAccessException extends BankingException {
     public UnauthorizedAccountAccessException(String message) {
-        super(message);
+        super(HttpStatus.FORBIDDEN, message);
     }
 }

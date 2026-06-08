@@ -1,7 +1,9 @@
 package inholland.nl.banking_project_backend.exceptions;
 
-public class InvalidTransactionException extends RuntimeException {
+import org.springframework.http.HttpStatus;
+
+public class InvalidTransactionException extends BankingException {
     public InvalidTransactionException(String message) {
-        super(message);
+        super(HttpStatus.BAD_REQUEST, message);
     }
 }
