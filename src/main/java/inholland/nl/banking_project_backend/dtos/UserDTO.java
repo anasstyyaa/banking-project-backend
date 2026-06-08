@@ -50,7 +50,8 @@ public class UserDTO {
     public record LoginResponse(
             String email,
             String token,
-            RoleEnum role
+            RoleEnum role,
+            Boolean isApproved
     ) {}
 
     // for showing user info safely

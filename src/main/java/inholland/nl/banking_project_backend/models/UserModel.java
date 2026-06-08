@@ -53,7 +53,7 @@ public class UserModel implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return this.isApproved;
+        return true;
     }
 
 }

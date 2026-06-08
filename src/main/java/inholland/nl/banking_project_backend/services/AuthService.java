@@ -47,7 +47,8 @@ public class AuthService {
         return new UserDTO.LoginResponse(
                 savedUser.getEmail(),
                 token,
-                savedUser.getRole()
+                savedUser.getRole(),
+                savedUser.getIsApproved()
         );
     }
 
@@ -59,9 +60,6 @@ public class AuthService {
                             dto.password()
                     )
             );
-        } catch (DisabledException e) {
-            log.warn("Login blocked: Account '{}' is pending employee approval.", dto.email());
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "ACCOUNT_PENDING_APPROVAL");
         } catch (BadCredentialsException e) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid email or password");
         }
@@ -76,7 +74,8 @@ public class AuthService {
         return new UserDTO.LoginResponse(
                 user.getEmail(),
                 token,
-                user.getRole()
+                user.getRole(),
+                user.getIsApproved()
         );
     }
 
