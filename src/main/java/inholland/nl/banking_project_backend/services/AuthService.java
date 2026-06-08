@@ -60,6 +60,9 @@ public class AuthService {
                             dto.password()
                     )
             );
+        } catch (DisabledException e) {
+            log.warn("Login blocked: Account '{}' is pending employee approval.", dto.email());
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "ACCOUNT_PENDING_APPROVAL");
         } catch (BadCredentialsException e) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid email or password");
         }
