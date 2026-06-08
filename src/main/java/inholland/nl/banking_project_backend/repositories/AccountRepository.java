@@ -18,8 +18,7 @@ public interface AccountRepository extends JpaRepository<AccountModel, Long> {
             WHERE a.isActive = true
               AND (:ownerEmail IS NULL OR a.customer.user.email = :ownerEmail)
             """)
-    Page<AccountModel> findAccounts(@Param("ownerEmail") String ownerEmail, Pageable pageable);
-
+    Page<AccountModel> findAccounts(@Param("ownerEmail") String ownerEmail, @Param("search") String search, Pageable pageable);
     // Finds one account by IBAN using an optional owner scope.
     @Query("""
             SELECT a FROM AccountModel a
