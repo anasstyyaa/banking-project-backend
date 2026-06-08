@@ -119,17 +119,18 @@ class UserControllerFunctionalTest {
         );
 
         mockMvc.perform(patch("/api/v1/users/registrations/{id}", pending.getId())
-                .with(user(employee))
-                .with(csrf())
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)));
+                        .with(user(employee))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isNoContent());
 
         UserModel updated = userRepository.findById(pending.getId()).orElseThrow();
         assertTrue(updated.getIsApproved());
         assertNotNull(updated.getIban());
 
         List<inholland.nl.banking_project_backend.models.AccountModel> accounts =
-                accountRepository.findAccounts(updated.getEmail(), Pageable.unpaged()).getContent();
+                accountRepository.findAccounts(updated.getEmail(), null, Pageable.unpaged()).getContent();
 
         assertEquals(2, accounts.size());
         accounts.forEach(account -> {
@@ -153,7 +154,7 @@ class UserControllerFunctionalTest {
                 .andExpect(status().isNoContent());
 
         List<inholland.nl.banking_project_backend.models.AccountModel> accounts =
-                accountRepository.findAccounts(pending.getEmail(), Pageable.unpaged()).getContent();
+                accountRepository.findAccounts(pending.getEmail(), null, Pageable.unpaged()).getContent();
 
         assertEquals(2, accounts.size());
         accounts.forEach(account -> {
