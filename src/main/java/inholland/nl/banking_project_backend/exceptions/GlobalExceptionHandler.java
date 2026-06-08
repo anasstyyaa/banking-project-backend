@@ -75,34 +75,10 @@ public class GlobalExceptionHandler {
         return buildError(HttpStatus.BAD_REQUEST, ex.getMessage());
     }
 
-    // handles missing account errors from account and transaction services
-    @ExceptionHandler(AccountNotFoundException.class)
-    public ResponseEntity<ErrorResponseDTO> handleAccountNotFound(AccountNotFoundException ex) {
-        return buildError(HttpStatus.NOT_FOUND, ex.getMessage());
-    }
-
-    // handles inactive account errors from account and transaction services
-    @ExceptionHandler(InactiveAccountException.class)
-    public ResponseEntity<ErrorResponseDTO> handleInactiveAccount(InactiveAccountException ex) {
-        return buildError(HttpStatus.CONFLICT, ex.getMessage());
-    }
-
-    // handles account ownership and authorization business errors
-    @ExceptionHandler(UnauthorizedAccountAccessException.class)
-    public ResponseEntity<ErrorResponseDTO> handleUnauthorizedAccountAccess(UnauthorizedAccountAccessException ex) {
-        return buildError(HttpStatus.FORBIDDEN, ex.getMessage());
-    }
-
-    // handles invalid transaction request data
-    @ExceptionHandler(InvalidTransactionException.class)
-    public ResponseEntity<ErrorResponseDTO> handleInvalidTransaction(InvalidTransactionException ex) {
-        return buildError(HttpStatus.BAD_REQUEST, ex.getMessage());
-    }
-
-    // handles absolute and daily limit errors
-    @ExceptionHandler({AbsoluteLimitExceededException.class, DailyLimitExceededException.class, LimitExceededException.class})
-    public ResponseEntity<ErrorResponseDTO> handleLimitExceeded(RuntimeException ex) {
-        return buildError(HttpStatusCode.valueOf(422), ex.getMessage());
+    // handles all domain/business exceptions — each carries its own HTTP status
+    @ExceptionHandler(BankingException.class)
+    public ResponseEntity<ErrorResponseDTO> handleBankingException(BankingException ex) {
+        return buildError(ex.getStatus(), ex.getMessage());
     }
 
     // creates the shared error response body for service-layer exceptions

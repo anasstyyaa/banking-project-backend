@@ -2,6 +2,7 @@ package inholland.nl.banking_project_backend.services;
 
 import inholland.nl.banking_project_backend.dtos.UserDTO;
 import inholland.nl.banking_project_backend.enums.AccountTypeEnum;
+import inholland.nl.banking_project_backend.exceptions.UserAlreadyExistsException;
 import inholland.nl.banking_project_backend.models.AccountModel;
 import inholland.nl.banking_project_backend.models.CustomerProfileModel;
 import inholland.nl.banking_project_backend.models.UserModel;
@@ -61,7 +62,7 @@ public class UserService implements UserDetailsService {
         UserModel user = findByEmail(email);
 
         if (!user.getEmail().equals(request.email()) && userRepository.existsByEmail(request.email())) {
-            throw new IllegalStateException("This email is already used by another account.");
+            throw new UserAlreadyExistsException("This email is already used by another account.");
         }
 
         user.setEmail(request.email());

@@ -1,7 +1,9 @@
 package inholland.nl.banking_project_backend.exceptions;
 
-public class AccountNotFoundException extends RuntimeException {
+import org.springframework.http.HttpStatus;
+
+public class AccountNotFoundException extends BankingException {
     public AccountNotFoundException(String message) {
-        super(message);
+        super(HttpStatus.NOT_FOUND, message);
     }
 }

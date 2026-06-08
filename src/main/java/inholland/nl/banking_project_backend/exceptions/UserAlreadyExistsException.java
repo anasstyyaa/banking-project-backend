@@ -1,8 +1,9 @@
 package inholland.nl.banking_project_backend.exceptions;
 
-public class UserAlreadyExistsException extends RuntimeException {
-    // Creates a duplicate user error with a frontend-safe message.
+import org.springframework.http.HttpStatus;
+
+public class UserAlreadyExistsException extends BankingException {
     public UserAlreadyExistsException(String message) {
-        super(message);
+        super(HttpStatus.CONFLICT, message);
     }
 }
