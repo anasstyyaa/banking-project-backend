@@ -19,8 +19,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -73,11 +75,12 @@ public class TransactionService {
     private TransactionResponseDTO createTransfer(CreateTransactionRequestDTO request, UserModel initiatedBy, String ownerEmail) {
         AccountModel source = findAccount(request.fromIban(), ownerEmail, "Source account not found.");
         AccountModel destination = findAccount(request.toIban(), null, "Destination account not found.");
+        BigDecimal dailyOutgoingTotal = source == null ? BigDecimal.ZERO : getDailyOutgoingTotal(source);
 
         if (ownerEmail == null) {
-            transactionPolicy.validateEmployeeTransfer(request, source, destination);
+            transactionPolicy.validateEmployeeTransfer(request, source, destination, dailyOutgoingTotal);
         } else {
-            transactionPolicy.validateCustomerTransfer(request, source, destination);
+            transactionPolicy.validateCustomerTransfer(request, source, destination, dailyOutgoingTotal);
         }
 
         transferFunds(source, destination, request.amount());
@@ -87,8 +90,9 @@ public class TransactionService {
     // Handles an ATM deposit into an account within the caller scope.
     private TransactionResponseDTO createDeposit(CreateTransactionRequestDTO request, UserModel initiatedBy, String ownerEmail) {
         AccountModel destination = findAccount(request.toIban(), ownerEmail, "Destination account not found.");
+        BigDecimal dailyDepositTotal = destination == null ? BigDecimal.ZERO : getDailyDepositTotal(destination);
 
-        transactionPolicy.validateDeposit(request, destination);
+        transactionPolicy.validateDeposit(request, destination, dailyDepositTotal);
         destination.setBalance(destination.getBalance().add(request.amount()));
         accountRepository.save(destination);
         return saveTransaction(request, null, destination, initiatedBy);
@@ -97,8 +101,9 @@ public class TransactionService {
     // Handles an ATM withdrawal from an account within the caller scope.
     private TransactionResponseDTO createWithdrawal(CreateTransactionRequestDTO request, UserModel initiatedBy, String ownerEmail) {
         AccountModel source = findAccount(request.fromIban(), ownerEmail, "Source account not found.");
+        BigDecimal dailyOutgoingTotal = source == null ? BigDecimal.ZERO : getDailyOutgoingTotal(source);
 
-        transactionPolicy.validateWithdrawal(request, source);
+        transactionPolicy.validateWithdrawal(request, source, dailyOutgoingTotal);
         source.setBalance(source.getBalance().subtract(request.amount()));
         accountRepository.save(source);
         return saveTransaction(request, source, null, initiatedBy);
@@ -120,6 +125,30 @@ public class TransactionService {
         destination.setBalance(destination.getBalance().add(amount));
         accountRepository.save(source);
         accountRepository.save(destination);
+    }
+
+    // Loads today's outgoing transfer and withdrawal total for one account.
+    private BigDecimal getDailyOutgoingTotal(AccountModel source) {
+        LocalDate today = LocalDate.now();
+        BigDecimal total = transactionRepository.sumOutgoingAmountForAccount(
+                source.getIban(),
+                today.atStartOfDay(),
+                today.atTime(LocalTime.MAX),
+                List.of(TransactionTypeEnum.TRANSFER, TransactionTypeEnum.WITHDRAWAL)
+        );
+        return total == null ? BigDecimal.ZERO : total;
+    }
+
+    // Loads today's ATM deposit total for one account.
+    private BigDecimal getDailyDepositTotal(AccountModel destination) {
+        LocalDate today = LocalDate.now();
+        BigDecimal total = transactionRepository.sumDepositAmountForAccount(
+                destination.getIban(),
+                today.atStartOfDay(),
+                today.atTime(LocalTime.MAX),
+                TransactionTypeEnum.DEPOSIT
+        );
+        return total == null ? BigDecimal.ZERO : total;
     }
 
     // Stores the final transaction record after account balances are changed.

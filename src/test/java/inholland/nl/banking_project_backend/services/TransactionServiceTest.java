@@ -91,8 +91,10 @@ class TransactionServiceTest {
     @Test
     void createTransaction_customerTransfer_movesMoneyAndSavesTransaction() {
         CreateTransactionRequestDTO request = transferRequest("100.00");
+        BigDecimal dailyOutgoingTotal = new BigDecimal("25.00");
         when(accountRepository.findAccountByIban(source.getIban(), user.getEmail())).thenReturn(Optional.of(source));
         when(accountRepository.findAccountByIban(destination.getIban(), null)).thenReturn(Optional.of(destination));
+        when(transactionRepository.sumOutgoingAmountForAccount(any(), any(), any(), any())).thenReturn(dailyOutgoingTotal);
         when(transactionMapper.toModel(request, source, destination, user)).thenReturn(transaction);
         when(transactionRepository.save(transaction)).thenReturn(transaction);
         when(transactionMapper.toResponse(transaction)).thenReturn(response);
@@ -102,7 +104,7 @@ class TransactionServiceTest {
         assertEquals(response, result);
         assertEquals(new BigDecimal("900.00"), source.getBalance());
         assertEquals(new BigDecimal("350.00"), destination.getBalance());
-        verify(transactionPolicy).validateCustomerTransfer(request, source, destination);
+        verify(transactionPolicy).validateCustomerTransfer(request, source, destination, dailyOutgoingTotal);
         verify(accountRepository).save(source);
         verify(accountRepository).save(destination);
         verify(transactionRepository).save(transaction);
@@ -112,15 +114,17 @@ class TransactionServiceTest {
     @Test
     void createTransaction_employeeTransfer_usesEmployeePolicy() {
         CreateTransactionRequestDTO request = transferRequest("100.00");
+        BigDecimal dailyOutgoingTotal = new BigDecimal("50.00");
         when(accountRepository.findAccountByIban(source.getIban(), null)).thenReturn(Optional.of(source));
         when(accountRepository.findAccountByIban(destination.getIban(), null)).thenReturn(Optional.of(destination));
+        when(transactionRepository.sumOutgoingAmountForAccount(any(), any(), any(), any())).thenReturn(dailyOutgoingTotal);
         when(transactionMapper.toModel(request, source, destination, user)).thenReturn(transaction);
         when(transactionRepository.save(transaction)).thenReturn(transaction);
         when(transactionMapper.toResponse(transaction)).thenReturn(response);
 
         transactionService.createTransaction(request, user, null);
 
-        verify(transactionPolicy).validateEmployeeTransfer(request, source, destination);
+        verify(transactionPolicy).validateEmployeeTransfer(request, source, destination, dailyOutgoingTotal);
     }
 
     // Deposits update only the destination balance and store the transaction.
@@ -132,7 +136,9 @@ class TransactionServiceTest {
                 destination.getIban(),
                 new BigDecimal("50.00")
         );
+        BigDecimal dailyDepositTotal = new BigDecimal("100.00");
         when(accountRepository.findAccountByIban(destination.getIban(), user.getEmail())).thenReturn(Optional.of(destination));
+        when(transactionRepository.sumDepositAmountForAccount(any(), any(), any(), any())).thenReturn(dailyDepositTotal);
         when(transactionMapper.toModel(request, null, destination, user)).thenReturn(transaction);
         when(transactionRepository.save(transaction)).thenReturn(transaction);
         when(transactionMapper.toResponse(transaction)).thenReturn(response);
@@ -140,7 +146,7 @@ class TransactionServiceTest {
         transactionService.createTransaction(request, user, user.getEmail());
 
         assertEquals(new BigDecimal("300.00"), destination.getBalance());
-        verify(transactionPolicy).validateDeposit(request, destination);
+        verify(transactionPolicy).validateDeposit(request, destination, dailyDepositTotal);
         verify(accountRepository).save(destination);
     }
 
@@ -153,7 +159,9 @@ class TransactionServiceTest {
                 null,
                 new BigDecimal("75.00")
         );
+        BigDecimal dailyOutgoingTotal = new BigDecimal("125.00");
         when(accountRepository.findAccountByIban(source.getIban(), user.getEmail())).thenReturn(Optional.of(source));
+        when(transactionRepository.sumOutgoingAmountForAccount(any(), any(), any(), any())).thenReturn(dailyOutgoingTotal);
         when(transactionMapper.toModel(request, source, null, user)).thenReturn(transaction);
         when(transactionRepository.save(transaction)).thenReturn(transaction);
         when(transactionMapper.toResponse(transaction)).thenReturn(response);
@@ -161,7 +169,7 @@ class TransactionServiceTest {
         transactionService.createTransaction(request, user, user.getEmail());
 
         assertEquals(new BigDecimal("925.00"), source.getBalance());
-        verify(transactionPolicy).validateWithdrawal(request, source);
+        verify(transactionPolicy).validateWithdrawal(request, source, dailyOutgoingTotal);
         verify(accountRepository).save(source);
     }
 
@@ -171,8 +179,9 @@ class TransactionServiceTest {
         CreateTransactionRequestDTO request = transferRequest("100.00");
         when(accountRepository.findAccountByIban(source.getIban(), user.getEmail())).thenReturn(Optional.of(source));
         when(accountRepository.findAccountByIban(destination.getIban(), null)).thenReturn(Optional.of(destination));
+        when(transactionRepository.sumOutgoingAmountForAccount(any(), any(), any(), any())).thenReturn(BigDecimal.ZERO);
         doThrow(new IllegalArgumentException("Policy rejected"))
-                .when(transactionPolicy).validateCustomerTransfer(request, source, destination);
+                .when(transactionPolicy).validateCustomerTransfer(request, source, destination, BigDecimal.ZERO);
 
         assertThrows(IllegalArgumentException.class,
                 () -> transactionService.createTransaction(request, user, user.getEmail()));
@@ -190,7 +199,7 @@ class TransactionServiceTest {
         assertThrows(EntityNotFoundException.class,
                 () -> transactionService.createTransaction(request, user, user.getEmail()));
 
-        verify(transactionPolicy, never()).validateCustomerTransfer(any(), any(), any());
+        verify(transactionPolicy, never()).validateCustomerTransfer(any(), any(), any(), any());
     }
 
     // Transaction history delegates filtering, viewer scope, and pagination to the repository.
