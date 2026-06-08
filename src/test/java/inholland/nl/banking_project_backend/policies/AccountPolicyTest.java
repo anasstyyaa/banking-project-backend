@@ -63,7 +63,7 @@ class AccountPolicyTest {
                 () -> accountPolicy.validateAccountCreation(approvedUser, request));
     }
 
-    // Open accounts can receive updated transfer limits.
+    // Open accounts can receive updated account limits.
     @Test
     void validateLimitUpdate_allowsOpenAccount() {
         AccountModel account = openAccount();

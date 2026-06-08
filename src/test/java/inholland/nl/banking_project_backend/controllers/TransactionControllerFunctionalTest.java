@@ -287,7 +287,7 @@ class TransactionControllerFunctionalTest {
                 .andExpect(jsonPath("$.message").value("ATM withdrawals can only be made from checking accounts."));
     }
 
-    // Daily transfer limit violations are returned as unprocessable entity.
+    // Daily outgoing limit violations are returned as unprocessable entity.
     @Test
     void createTransaction_whenDailyLimitExceeded_returnsUnprocessableEntity() throws Exception {
         UserModel customer = savedUser("customer", RoleEnum.ROLE_CUSTOMER);
@@ -298,6 +298,27 @@ class TransactionControllerFunctionalTest {
                 "fromIban", source.getIban(),
                 "toIban", destination.getIban(),
                 "amount", 150
+        );
+
+        mockMvc.perform(post("/api/v1/transactions")
+                        .with(csrf())
+                        .with(user(customer))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.message").value("This transaction exceeds the account daily limit."));
+    }
+
+    // ATM deposit daily limit violations are returned as unprocessable entity.
+    @Test
+    void createTransaction_whenDepositDailyLimitExceeded_returnsUnprocessableEntity() throws Exception {
+        UserModel customer = savedUser("customer", RoleEnum.ROLE_CUSTOMER);
+        AccountModel destination = savedAccount(savedProfile(customer), "NL12INHO000000127", AccountTypeEnum.CHECKING, "1000.00", "-500.00", "100.00");
+        savedDepositTransaction(destination, customer, "80.00");
+        Map<String, Object> request = Map.of(
+                "type", "DEPOSIT",
+                "toIban", destination.getIban(),
+                "amount", 30
         );
 
         mockMvc.perform(post("/api/v1/transactions")
@@ -393,6 +414,17 @@ class TransactionControllerFunctionalTest {
         transaction.setToIbanSnapshot(destination.getIban());
         transaction.setAmount(new BigDecimal(amount));
         transaction.setTimestamp(timestamp);
+        transaction.setInitiatedBy(initiatedBy);
+        return transactionRepository.save(transaction);
+    }
+
+    private TransactionModel savedDepositTransaction(AccountModel destination, UserModel initiatedBy, String amount) {
+        TransactionModel transaction = new TransactionModel();
+        transaction.setType(TransactionTypeEnum.DEPOSIT);
+        transaction.setToAccount(destination);
+        transaction.setToIbanSnapshot(destination.getIban());
+        transaction.setAmount(new BigDecimal(amount));
+        transaction.setTimestamp(LocalDateTime.now());
         transaction.setInitiatedBy(initiatedBy);
         return transactionRepository.save(transaction);
     }

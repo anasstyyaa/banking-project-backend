@@ -6,26 +6,15 @@ import inholland.nl.banking_project_backend.enums.TransactionTypeEnum;
 import inholland.nl.banking_project_backend.exceptions.LimitExceededException;
 import inholland.nl.banking_project_backend.models.AccountModel;
 import inholland.nl.banking_project_backend.models.CustomerProfileModel;
-import inholland.nl.banking_project_backend.repositories.TransactionRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.when;
 
-@ExtendWith(MockitoExtension.class)
 class TransactionPolicyTest {
-
-    @Mock
-    private TransactionRepository transactionRepository;
 
     private TransactionPolicy transactionPolicy;
     private AccountModel source;
@@ -33,7 +22,7 @@ class TransactionPolicyTest {
 
     @BeforeEach
     void setUp() {
-        transactionPolicy = new TransactionPolicy(transactionRepository);
+        transactionPolicy = new TransactionPolicy();
         source = account("NL01INHO000000001", AccountTypeEnum.CHECKING, "1000.00", "-500.00", "1000.00");
         destination = account("NL01INHO000000002", AccountTypeEnum.CHECKING, "250.00", "-500.00", "1000.00");
     }
@@ -41,23 +30,21 @@ class TransactionPolicyTest {
     // Valid customer transfers pass all transaction rules.
     @Test
     void validateCustomerTransfer_allowsValidTransfer() {
-        whenDailyTotalIs("100.00");
-
-        assertDoesNotThrow(() -> transactionPolicy.validateCustomerTransfer(transfer("200.00"), source, destination));
+        assertDoesNotThrow(() -> transactionPolicy.validateCustomerTransfer(transfer("200.00"), source, destination, dailyTotal("100.00")));
     }
 
     // Transfers require both a loaded source and destination account.
     @Test
     void validateCustomerTransfer_throwsWhenSourceIsMissing() {
         assertThrows(IllegalArgumentException.class,
-                () -> transactionPolicy.validateCustomerTransfer(transfer("100.00"), null, destination));
+                () -> transactionPolicy.validateCustomerTransfer(transfer("100.00"), null, destination, BigDecimal.ZERO));
     }
 
     // Transfers cannot send money from an account to itself.
     @Test
     void validateCustomerTransfer_throwsWhenAccountsAreTheSame() {
         assertThrows(IllegalArgumentException.class,
-                () -> transactionPolicy.validateCustomerTransfer(transfer("100.00"), source, source));
+                () -> transactionPolicy.validateCustomerTransfer(transfer("100.00"), source, source, BigDecimal.ZERO));
     }
 
     // Customers can transfer between their own savings and checking accounts.
@@ -67,9 +54,8 @@ class TransactionPolicyTest {
         source.setCustomer(owner);
         destination.setCustomer(owner);
         source.setType(AccountTypeEnum.SAVINGS);
-        whenDailyTotalIs("100.00");
 
-        assertDoesNotThrow(() -> transactionPolicy.validateCustomerTransfer(transfer("200.00"), source, destination));
+        assertDoesNotThrow(() -> transactionPolicy.validateCustomerTransfer(transfer("200.00"), source, destination, dailyTotal("100.00")));
     }
 
     // Customers cannot send external transfers from savings accounts.
@@ -80,7 +66,7 @@ class TransactionPolicyTest {
         source.setType(AccountTypeEnum.SAVINGS);
 
         assertThrows(IllegalArgumentException.class,
-                () -> transactionPolicy.validateCustomerTransfer(transfer("100.00"), source, destination));
+                () -> transactionPolicy.validateCustomerTransfer(transfer("100.00"), source, destination, BigDecimal.ZERO));
     }
 
     // Customers cannot send external transfers to another customer's savings account.
@@ -91,7 +77,7 @@ class TransactionPolicyTest {
         destination.setType(AccountTypeEnum.SAVINGS);
 
         assertThrows(IllegalArgumentException.class,
-                () -> transactionPolicy.validateCustomerTransfer(transfer("100.00"), source, destination));
+                () -> transactionPolicy.validateCustomerTransfer(transfer("100.00"), source, destination, BigDecimal.ZERO));
     }
 
     // Employee transfers must move money between checking accounts.
@@ -100,29 +86,34 @@ class TransactionPolicyTest {
         destination.setType(AccountTypeEnum.SAVINGS);
 
         assertThrows(IllegalArgumentException.class,
-                () -> transactionPolicy.validateEmployeeTransfer(transfer("100.00"), source, destination));
+                () -> transactionPolicy.validateEmployeeTransfer(transfer("100.00"), source, destination, BigDecimal.ZERO));
     }
 
     // Outgoing transactions cannot move the account below the absolute limit.
     @Test
     void validateWithdrawal_throwsWhenAbsoluteLimitWouldBeExceeded() {
         assertThrows(LimitExceededException.class,
-                () -> transactionPolicy.validateWithdrawal(withdrawal("1600.00"), source));
+                () -> transactionPolicy.validateWithdrawal(withdrawal("1600.00"), source, BigDecimal.ZERO));
     }
 
-    // Outgoing transactions cannot exceed today's daily transfer limit.
+    // Outgoing transactions cannot exceed today's daily limit.
     @Test
     void validateWithdrawal_throwsWhenDailyLimitWouldBeExceeded() {
-        whenDailyTotalIs("900.00");
-
         assertThrows(LimitExceededException.class,
-                () -> transactionPolicy.validateWithdrawal(withdrawal("200.00"), source));
+                () -> transactionPolicy.validateWithdrawal(withdrawal("200.00"), source, dailyTotal("900.00")));
     }
 
-    // Deposits only require an open destination account and do not check outgoing limits.
+    // Deposits require an open checking account and stay within the account daily limit.
     @Test
     void validateDeposit_allowsOpenDestinationAccount() {
-        assertDoesNotThrow(() -> transactionPolicy.validateDeposit(deposit("100.00"), destination));
+        assertDoesNotThrow(() -> transactionPolicy.validateDeposit(deposit("100.00"), destination, dailyTotal("100.00")));
+    }
+
+    // ATM deposits cannot exceed today's daily limit for the destination account.
+    @Test
+    void validateDeposit_throwsWhenDailyLimitWouldBeExceeded() {
+        assertThrows(LimitExceededException.class,
+                () -> transactionPolicy.validateDeposit(deposit("200.00"), destination, dailyTotal("900.00")));
     }
 
     // ATM deposits are only allowed into checking accounts.
@@ -131,7 +122,7 @@ class TransactionPolicyTest {
         destination.setType(AccountTypeEnum.SAVINGS);
 
         assertThrows(IllegalArgumentException.class,
-                () -> transactionPolicy.validateDeposit(deposit("100.00"), destination));
+                () -> transactionPolicy.validateDeposit(deposit("100.00"), destination, BigDecimal.ZERO));
     }
 
     // ATM withdrawals are only allowed from checking accounts.
@@ -140,7 +131,7 @@ class TransactionPolicyTest {
         source.setType(AccountTypeEnum.SAVINGS);
 
         assertThrows(IllegalArgumentException.class,
-                () -> transactionPolicy.validateWithdrawal(withdrawal("100.00"), source));
+                () -> transactionPolicy.validateWithdrawal(withdrawal("100.00"), source, BigDecimal.ZERO));
     }
 
     // Closed accounts cannot be used in transaction workflows.
@@ -149,12 +140,11 @@ class TransactionPolicyTest {
         destination.setIsActive(false);
 
         assertThrows(IllegalStateException.class,
-                () -> transactionPolicy.validateDeposit(deposit("100.00"), destination));
+                () -> transactionPolicy.validateDeposit(deposit("100.00"), destination, BigDecimal.ZERO));
     }
 
-    private void whenDailyTotalIs(String amount) {
-        when(transactionRepository.sumOutgoingAmountForAccount(eq(source.getIban()), any(), any(), any()))
-                .thenReturn(new BigDecimal(amount));
+    private BigDecimal dailyTotal(String amount) {
+        return new BigDecimal(amount);
     }
 
     private CreateTransactionRequestDTO transfer(String amount) {

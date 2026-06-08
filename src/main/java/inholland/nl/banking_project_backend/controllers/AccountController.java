@@ -83,8 +83,8 @@ public class AccountController {
         return ResponseEntity.ok(accountService.closeAccount(iban));
     }
 
-    // Updates absolute and daily transfer limits for an active account.
-    @Operation(summary = "Update account limits", description = "Allows an employee to update absolute and daily transfer limits.")
+    // Updates absolute and daily transaction limits for an active account.
+    @Operation(summary = "Update account limits", description = "Allows an employee to update absolute and daily transaction limits.")
     @PatchMapping("/{iban}/limits")
     @PreAuthorize("hasRole('EMPLOYEE')")
     public ResponseEntity<AccountResponseDTO> updateLimits(

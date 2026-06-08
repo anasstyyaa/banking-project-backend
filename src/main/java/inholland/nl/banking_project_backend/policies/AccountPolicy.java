@@ -15,7 +15,7 @@ public class AccountPolicy {
         requireValidLimits(request.absoluteLimit(), request.dailyLimit());
     }
 
-    // Validates that an open account can receive updated transfer limits.
+    // Validates that an open account can receive updated account limits.
     public void validateLimitUpdate(AccountModel account, UpdateAccountLimitsRequestDTO request) {
         requireOpenAccount(account);
         requireValidLimits(request.absoluteLimit(), request.dailyLimit());
@@ -42,7 +42,7 @@ public class AccountPolicy {
         }
     }
 
-    // Ensures transfer limits follow the account rules.
+    // Ensures account limits follow the account rules.
     private void requireValidLimits(java.math.BigDecimal absoluteLimit, java.math.BigDecimal dailyLimit) {
         if (absoluteLimit == null || dailyLimit == null) {
             throw new IllegalArgumentException("Account limits are required.");

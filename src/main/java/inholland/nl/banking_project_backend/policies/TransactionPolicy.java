@@ -6,23 +6,14 @@ import inholland.nl.banking_project_backend.enums.TransactionTypeEnum;
 import inholland.nl.banking_project_backend.exceptions.LimitExceededException;
 import inholland.nl.banking_project_backend.models.AccountModel;
 import inholland.nl.banking_project_backend.models.CustomerProfileModel;
-import inholland.nl.banking_project_backend.repositories.TransactionRepository;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.util.List;
 
 @Component
-@RequiredArgsConstructor
 public class TransactionPolicy {
-    private final TransactionRepository transactionRepository;
-
     // Validates a customer transfer before balances are changed.
-    public void validateCustomerTransfer(CreateTransactionRequestDTO request, AccountModel source, AccountModel destination) {
+    public void validateCustomerTransfer(CreateTransactionRequestDTO request, AccountModel source, AccountModel destination, BigDecimal dailyOutgoingTotal) {
         requireTransactionType(request, TransactionTypeEnum.TRANSFER);
         requireAccountField(source, "Transfer requires a source IBAN.");
         requireAccountField(destination, "Transfer requires a destination IBAN.");
@@ -30,11 +21,11 @@ public class TransactionPolicy {
         requireOpenAccount(destination);
         requireDifferentAccounts(source, destination);
         requireExternalCustomerTransferAccounts(source, destination);
-        requireOutgoingLimits(source, request.amount());
+        requireOutgoingLimits(source, request.amount(), dailyOutgoingTotal);
     }
 
     // Validates an employee transfer before balances are changed.
-    public void validateEmployeeTransfer(CreateTransactionRequestDTO request, AccountModel source, AccountModel destination) {
+    public void validateEmployeeTransfer(CreateTransactionRequestDTO request, AccountModel source, AccountModel destination, BigDecimal dailyOutgoingTotal) {
         requireTransactionType(request, TransactionTypeEnum.TRANSFER);
         requireAccountField(source, "Transfer requires a source IBAN.");
         requireAccountField(destination, "Transfer requires a destination IBAN.");
@@ -42,24 +33,28 @@ public class TransactionPolicy {
         requireOpenAccount(destination);
         requireCheckingTransfer(source, destination, "Employees can only transfer between checking accounts.");
         requireDifferentAccounts(source, destination);
-        requireOutgoingLimits(source, request.amount());
+        requireOutgoingLimits(source, request.amount(), dailyOutgoingTotal);
     }
 
     // Validates an ATM deposit before the account balance is changed.
-    public void validateDeposit(CreateTransactionRequestDTO request, AccountModel destination) {
+    public void validateDeposit(CreateTransactionRequestDTO request, AccountModel destination, BigDecimal dailyDepositTotal) {
         requireTransactionType(request, TransactionTypeEnum.DEPOSIT);
         requireAccountField(destination, "Deposit requires a destination IBAN.");
         requireOpenAccount(destination);
         requireCheckingAccount(destination, "ATM deposits can only be made into checking accounts.");
+
+        if (dailyDepositTotal.add(request.amount()).compareTo(destination.getDailyLimit()) > 0) {
+            throw new LimitExceededException("This transaction exceeds the account daily limit.");
+        }
     }
 
     // Validates an ATM withdrawal before the account balance is changed.
-    public void validateWithdrawal(CreateTransactionRequestDTO request, AccountModel source) {
+    public void validateWithdrawal(CreateTransactionRequestDTO request, AccountModel source, BigDecimal dailyOutgoingTotal) {
         requireTransactionType(request, TransactionTypeEnum.WITHDRAWAL);
         requireAccountField(source, "Withdrawal requires a source IBAN.");
         requireOpenAccount(source);
         requireCheckingAccount(source, "ATM withdrawals can only be made from checking accounts.");
-        requireOutgoingLimits(source, request.amount());
+        requireOutgoingLimits(source, request.amount(), dailyOutgoingTotal);
     }
 
     // Ensures a transaction request is being handled by the correct workflow.
@@ -128,28 +123,14 @@ public class TransactionPolicy {
     }
 
     // Ensures outgoing transactions respect the account absolute and daily limits.
-    private void requireOutgoingLimits(AccountModel source, BigDecimal amount) {
+    private void requireOutgoingLimits(AccountModel source, BigDecimal amount, BigDecimal dailyOutgoingTotal) {
         BigDecimal balanceAfterTransaction = source.getBalance().subtract(amount);
         if (balanceAfterTransaction.compareTo(source.getAbsoluteLimit()) < 0) {
             throw new LimitExceededException("This transaction exceeds the account absolute limit.");
         }
 
-        BigDecimal dailyTotal = getDailyOutgoingTotal(source);
-        if (dailyTotal.add(amount).compareTo(source.getDailyLimit()) > 0) {
+        if (dailyOutgoingTotal.add(amount).compareTo(source.getDailyLimit()) > 0) {
             throw new LimitExceededException("This transaction exceeds the account daily limit.");
         }
-    }
-
-    // Calculates today's outgoing transfer and withdrawal total for one account.
-    private BigDecimal getDailyOutgoingTotal(AccountModel source) {
-        LocalDateTime start = LocalDate.now().atStartOfDay();
-        LocalDateTime end = LocalDate.now().atTime(LocalTime.MAX);
-        BigDecimal total = transactionRepository.sumOutgoingAmountForAccount(
-                source.getIban(),
-                start,
-                end,
-                List.of(TransactionTypeEnum.TRANSFER, TransactionTypeEnum.WITHDRAWAL)
-        );
-        return total == null ? BigDecimal.ZERO : total;
     }
 }

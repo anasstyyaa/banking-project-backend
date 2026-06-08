@@ -63,7 +63,7 @@ public interface TransactionRepository extends JpaRepository<TransactionModel, L
             @Param("viewerEmail") String viewerEmail
     );
 
-    // Calculates today's outgoing transaction total for daily transfer limit checks.
+    // Calculates today's outgoing transaction total for daily limit checks.
     @Query("""
             SELECT SUM(t.amount)
             FROM TransactionModel t
@@ -76,5 +76,20 @@ public interface TransactionRepository extends JpaRepository<TransactionModel, L
             @Param("start") LocalDateTime start,
             @Param("end") LocalDateTime end,
             @Param("outgoingTypes") List<TransactionTypeEnum> outgoingTypes
+    );
+
+    // Calculates today's ATM deposit total for daily deposit limit checks.
+    @Query("""
+            SELECT SUM(t.amount)
+            FROM TransactionModel t
+            WHERE t.toIbanSnapshot = :iban
+              AND t.timestamp BETWEEN :start AND :end
+              AND t.type = :depositType
+            """)
+    BigDecimal sumDepositAmountForAccount(
+            @Param("iban") String iban,
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end,
+            @Param("depositType") TransactionTypeEnum depositType
     );
 }
