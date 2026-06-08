@@ -20,6 +20,8 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
@@ -74,12 +76,8 @@ public class AuthController {
     }
 
     @GetMapping("/csrf")
-    public ResponseEntity<Void> getCsrfToken(HttpServletRequest request, HttpServletResponse response) {
-        CsrfToken csrfToken = (CsrfToken) request.getAttribute(CsrfToken.class.getName());
-        if (csrfToken != null) {
-            csrfToken.getToken(); 
-        }
-        return ResponseEntity.ok().build();
+    public ResponseEntity<Map<String, String>> getCsrfToken(CsrfToken csrfToken) {
+        return ResponseEntity.ok(Map.of("token", csrfToken.getToken()));
     }
 
 }
