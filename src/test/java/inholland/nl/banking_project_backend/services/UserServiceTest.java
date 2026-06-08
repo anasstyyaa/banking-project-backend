@@ -3,6 +3,7 @@ package inholland.nl.banking_project_backend.services;
 import inholland.nl.banking_project_backend.dtos.UserDTO;
 import inholland.nl.banking_project_backend.enums.AccountTypeEnum;
 import inholland.nl.banking_project_backend.enums.RegistrationDecisionEnum;
+import inholland.nl.banking_project_backend.exceptions.UserAlreadyExistsException;
 import inholland.nl.banking_project_backend.models.AccountModel;
 import inholland.nl.banking_project_backend.models.CustomerProfileModel;
 import inholland.nl.banking_project_backend.models.RoleEnum;
@@ -21,6 +22,7 @@ import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -141,7 +143,7 @@ class UserServiceTest {
     }
 
     @Test
-    void givenEmailOwnedByAnotherUser_whenUpdateProfile_shouldThrowIllegalStateException() {
+    void givenEmailOwnedByAnotherUser_whenUpdateProfile_shouldThrowUserAlreadyExistsException() {
         String oldEmail = "old@mail.com";
         String takenEmail = "taken@mail.com";
         mockSecurityContext(oldEmail);
@@ -154,7 +156,11 @@ class UserServiceTest {
         when(userRepository.findByEmail(oldEmail)).thenReturn(Optional.of(user));
         when(userRepository.existsByEmail(takenEmail)).thenReturn(true);
 
-        assertThrows(IllegalStateException.class, () -> userService.updateProfile(request));
+        UserAlreadyExistsException exception = assertThrows(UserAlreadyExistsException.class,
+                () -> userService.updateProfile(request));
+
+        assertEquals(HttpStatus.CONFLICT, exception.getStatus());
+        assertEquals("This email is already used by another account.", exception.getMessage());
         verify(userRepository, never()).save(any());
     }
 

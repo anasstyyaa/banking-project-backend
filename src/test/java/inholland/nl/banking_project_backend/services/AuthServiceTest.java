@@ -1,6 +1,7 @@
 package inholland.nl.banking_project_backend.services;
 
 import inholland.nl.banking_project_backend.dtos.UserDTO;
+import inholland.nl.banking_project_backend.exceptions.UserAlreadyExistsException;
 import inholland.nl.banking_project_backend.mappers.UserMapper;
 import inholland.nl.banking_project_backend.models.RoleEnum;
 import inholland.nl.banking_project_backend.models.UserModel;
@@ -73,13 +74,12 @@ class AuthServiceTest {
         UserDTO.RegisterRequest request = validRegisterRequest("existing@mail.com", "123456782");
         when(userService.existsByEmail(request.email())).thenReturn(true);
 
-        
-        ResponseStatusException exception = assertThrows(ResponseStatusException.class, () -> {
+        UserAlreadyExistsException exception = assertThrows(UserAlreadyExistsException.class, () -> {
             authService.register(request);
         });
 
-        assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
-        assertEquals("Email already exists", exception.getReason());
+        assertEquals(HttpStatus.CONFLICT, exception.getStatus());
+        assertEquals("Email already exists", exception.getMessage());
         verify(userService, never()).create(any());
     }
 
