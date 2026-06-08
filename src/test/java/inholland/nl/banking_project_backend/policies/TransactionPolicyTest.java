@@ -90,6 +90,24 @@ class TransactionPolicyTest {
         assertDoesNotThrow(() -> transactionPolicy.validateDeposit(deposit("100.00"), destination));
     }
 
+    // ATM deposits are only allowed into checking accounts.
+    @Test
+    void validateDeposit_throwsForSavingsDestination() {
+        destination.setType(AccountTypeEnum.SAVINGS);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> transactionPolicy.validateDeposit(deposit("100.00"), destination));
+    }
+
+    // ATM withdrawals are only allowed from checking accounts.
+    @Test
+    void validateWithdrawal_throwsForSavingsSource() {
+        source.setType(AccountTypeEnum.SAVINGS);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> transactionPolicy.validateWithdrawal(withdrawal("100.00"), source));
+    }
+
     // Closed accounts cannot be used in transaction workflows.
     @Test
     void validateDeposit_throwsForClosedDestinationAccount() {

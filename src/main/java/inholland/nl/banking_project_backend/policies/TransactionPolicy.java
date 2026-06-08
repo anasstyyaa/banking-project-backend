@@ -48,6 +48,7 @@ public class TransactionPolicy {
         requireTransactionType(request, TransactionTypeEnum.DEPOSIT);
         requireAccountField(destination, "Deposit requires a destination IBAN.");
         requireOpenAccount(destination);
+        requireCheckingAccount(destination, "ATM deposits can only be made into checking accounts.");
     }
 
     // Validates an ATM withdrawal before the account balance is changed.
@@ -55,6 +56,7 @@ public class TransactionPolicy {
         requireTransactionType(request, TransactionTypeEnum.WITHDRAWAL);
         requireAccountField(source, "Withdrawal requires a source IBAN.");
         requireOpenAccount(source);
+        requireCheckingAccount(source, "ATM withdrawals can only be made from checking accounts.");
         requireOutgoingLimits(source, request.amount());
     }
 
@@ -90,6 +92,13 @@ public class TransactionPolicy {
     private void requireCheckingTransfer(AccountModel source, AccountModel destination) {
         if (source.getType() != AccountTypeEnum.CHECKING || destination.getType() != AccountTypeEnum.CHECKING) {
             throw new IllegalArgumentException("Employees can only transfer between checking accounts.");
+        }
+    }
+
+    // Ensures ATM cash operations only use checking accounts.
+    private void requireCheckingAccount(AccountModel account, String message) {
+        if (account.getType() != AccountTypeEnum.CHECKING) {
+            throw new IllegalArgumentException(message);
         }
     }
 
