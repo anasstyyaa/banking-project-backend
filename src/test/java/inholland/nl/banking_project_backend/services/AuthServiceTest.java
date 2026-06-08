@@ -119,19 +119,25 @@ class AuthServiceTest {
     }
 
     @Test
-    void givenPendingAccount_whenLogin_shouldThrowForbiddenException() {
-        
+    void givenPendingAccount_whenLogin_shouldSucceedAndIndicatePendingStatus() {
         UserDTO.LoginRequest request = new UserDTO.LoginRequest("pending@mail.com", "password");
+
+        UserModel pendingUser = new UserModel();
+        pendingUser.setEmail("pending@mail.com");
+        pendingUser.setRole(RoleEnum.ROLE_CUSTOMER);
+        pendingUser.setIsApproved(false);
+
         when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
-                .thenThrow(new DisabledException("Disabled"));
+                .thenReturn(null);
+        when(userService.findByEmail("pending@mail.com")).thenReturn(pendingUser);
+        when(jwtService.generateToken(pendingUser.getEmail(), pendingUser.getRole().name())).thenReturn("mockedToken");
 
-        ResponseStatusException exception = assertThrows(ResponseStatusException.class, () -> {
-            authService.login(request);
-        });
+        UserDTO.LoginResponse response = authService.login(request);
 
-        assertEquals(HttpStatus.FORBIDDEN, exception.getStatusCode());
-        assertEquals("ACCOUNT_PENDING_APPROVAL", exception.getReason());
-        verifyNoInteractions(jwtService);
+        assertNotNull(response);
+        assertEquals("pending@mail.com", response.email());
+        assertEquals("mockedToken", response.token());
+        assertFalse(response.isApproved());
     }
 
     @Test
