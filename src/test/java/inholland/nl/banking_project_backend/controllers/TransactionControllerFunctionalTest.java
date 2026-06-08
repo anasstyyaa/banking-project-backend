@@ -92,6 +92,48 @@ class TransactionControllerFunctionalTest {
                 .andExpect(jsonPath("$.content[0].fromIban").value("NL12INHO000000103"));
     }
 
+    // Employee transaction history applies date, amount, IBAN, and pagination filters in the API.
+    @Test
+    void getTransactions_withDateAmountAndIbanFilters_returnsMatchingTransaction() throws Exception {
+        UserModel employee = savedUser("employee", RoleEnum.ROLE_EMPLOYEE);
+        AccountModel source = savedAccount(savedProfile(savedUser("source", RoleEnum.ROLE_CUSTOMER)), "NL12INHO000000116", AccountTypeEnum.CHECKING, "1000.00", "-500.00", "1000.00");
+        AccountModel destination = savedAccount(savedProfile(savedUser("destination", RoleEnum.ROLE_CUSTOMER)), "NL12INHO000000117", AccountTypeEnum.CHECKING, "1000.00", "-500.00", "1000.00");
+        savedTransaction(source, destination, employee, "123.45", LocalDateTime.of(2026, 1, 15, 10, 0));
+        savedTransaction(source, destination, employee, "200.00", LocalDateTime.of(2026, 1, 15, 11, 0));
+
+        mockMvc.perform(get("/api/v1/transactions")
+                        .param("startDate", "2026-01-01")
+                        .param("endDate", "2026-01-31")
+                        .param("amountEqualTo", "123.45")
+                        .param("iban", source.getIban())
+                        .param("page", "0")
+                        .param("size", "20")
+                        .with(user(employee)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content", hasSize(1)))
+                .andExpect(jsonPath("$.content[0].fromIban").value(source.getIban()))
+                .andExpect(jsonPath("$.content[0].amount").value(123.45));
+    }
+
+    // Employee transaction history can be scoped to one customer by user id.
+    @Test
+    void getTransactions_withCustomerUserIdFilter_returnsOnlyThatCustomerTransactions() throws Exception {
+        UserModel employee = savedUser("employee", RoleEnum.ROLE_EMPLOYEE);
+        UserModel customer = savedUser("customer", RoleEnum.ROLE_CUSTOMER);
+        AccountModel customerAccount = savedAccount(savedProfile(customer), "NL12INHO000000118", AccountTypeEnum.CHECKING, "1000.00", "-500.00", "1000.00");
+        AccountModel otherAccount = savedAccount(savedProfile(savedUser("other", RoleEnum.ROLE_CUSTOMER)), "NL12INHO000000119", AccountTypeEnum.CHECKING, "1000.00", "-500.00", "1000.00");
+        AccountModel destination = savedAccount(savedProfile(savedUser("destination", RoleEnum.ROLE_CUSTOMER)), "NL12INHO000000120", AccountTypeEnum.CHECKING, "1000.00", "-500.00", "1000.00");
+        savedTransaction(customerAccount, destination, employee, "50.00");
+        savedTransaction(otherAccount, destination, employee, "60.00");
+
+        mockMvc.perform(get("/api/v1/transactions")
+                        .param("userId", customer.getId().toString())
+                        .with(user(employee)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content", hasSize(1)))
+                .andExpect(jsonPath("$.content[0].fromIban").value(customerAccount.getIban()));
+    }
+
     // Customer transfers persist a transaction and return created.
     @Test
     void createTransaction_customerTransfer_returnsCreated() throws Exception {
@@ -115,6 +157,52 @@ class TransactionControllerFunctionalTest {
                 .andExpect(jsonPath("$.fromIban").value(source.getIban()))
                 .andExpect(jsonPath("$.toIban").value(destination.getIban()))
                 .andExpect(jsonPath("$.amount").value(100));
+    }
+
+    // Customers can move money between their own savings and checking accounts.
+    @Test
+    void createTransaction_customerOwnSavingsToCheckingTransfer_returnsCreated() throws Exception {
+        UserModel customer = savedUser("customer", RoleEnum.ROLE_CUSTOMER);
+        CustomerProfileModel profile = savedProfile(customer);
+        AccountModel source = savedAccount(profile, "NL12INHO000000121", AccountTypeEnum.SAVINGS, "1000.00", "-500.00", "1000.00");
+        AccountModel destination = savedAccount(profile, "NL12INHO000000122", AccountTypeEnum.CHECKING, "250.00", "-500.00", "1000.00");
+        Map<String, Object> request = Map.of(
+                "type", "TRANSFER",
+                "fromIban", source.getIban(),
+                "toIban", destination.getIban(),
+                "amount", 100
+        );
+
+        mockMvc.perform(post("/api/v1/transactions")
+                        .with(csrf())
+                        .with(user(customer))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.fromIban").value(source.getIban()))
+                .andExpect(jsonPath("$.toIban").value(destination.getIban()));
+    }
+
+    // External customer transfers cannot use savings accounts.
+    @Test
+    void createTransaction_customerExternalSavingsTransfer_returnsBadRequest() throws Exception {
+        UserModel customer = savedUser("customer", RoleEnum.ROLE_CUSTOMER);
+        AccountModel source = savedAccount(savedProfile(customer), "NL12INHO000000123", AccountTypeEnum.SAVINGS, "1000.00", "-500.00", "1000.00");
+        AccountModel destination = savedAccount(savedProfile(savedUser("destination", RoleEnum.ROLE_CUSTOMER)), "NL12INHO000000124", AccountTypeEnum.CHECKING, "250.00", "-500.00", "1000.00");
+        Map<String, Object> request = Map.of(
+                "type", "TRANSFER",
+                "fromIban", source.getIban(),
+                "toIban", destination.getIban(),
+                "amount", 100
+        );
+
+        mockMvc.perform(post("/api/v1/transactions")
+                        .with(csrf())
+                        .with(user(customer))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("External customer transfers can only be made between checking accounts."));
     }
 
     // Employee transfers are allowed only between checking accounts.
@@ -157,6 +245,46 @@ class TransactionControllerFunctionalTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("Only transfers can be created for customer accounts by staff."));
+    }
+
+    // ATM deposits through the transaction API can only target checking accounts.
+    @Test
+    void createTransaction_customerDepositToSavings_returnsBadRequest() throws Exception {
+        UserModel customer = savedUser("customer", RoleEnum.ROLE_CUSTOMER);
+        AccountModel destination = savedAccount(savedProfile(customer), "NL12INHO000000125", AccountTypeEnum.SAVINGS, "250.00", "-500.00", "1000.00");
+        Map<String, Object> request = Map.of(
+                "type", "DEPOSIT",
+                "toIban", destination.getIban(),
+                "amount", 100
+        );
+
+        mockMvc.perform(post("/api/v1/transactions")
+                        .with(csrf())
+                        .with(user(customer))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("ATM deposits can only be made into checking accounts."));
+    }
+
+    // ATM withdrawals through the transaction API can only use checking accounts.
+    @Test
+    void createTransaction_customerWithdrawalFromSavings_returnsBadRequest() throws Exception {
+        UserModel customer = savedUser("customer", RoleEnum.ROLE_CUSTOMER);
+        AccountModel source = savedAccount(savedProfile(customer), "NL12INHO000000126", AccountTypeEnum.SAVINGS, "250.00", "-500.00", "1000.00");
+        Map<String, Object> request = Map.of(
+                "type", "WITHDRAWAL",
+                "fromIban", source.getIban(),
+                "amount", 100
+        );
+
+        mockMvc.perform(post("/api/v1/transactions")
+                        .with(csrf())
+                        .with(user(customer))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("ATM withdrawals can only be made from checking accounts."));
     }
 
     // Daily transfer limit violations are returned as unprocessable entity.
@@ -253,6 +381,10 @@ class TransactionControllerFunctionalTest {
     }
 
     private TransactionModel savedTransaction(AccountModel source, AccountModel destination, UserModel initiatedBy, String amount) {
+        return savedTransaction(source, destination, initiatedBy, amount, LocalDateTime.now());
+    }
+
+    private TransactionModel savedTransaction(AccountModel source, AccountModel destination, UserModel initiatedBy, String amount, LocalDateTime timestamp) {
         TransactionModel transaction = new TransactionModel();
         transaction.setType(TransactionTypeEnum.TRANSFER);
         transaction.setFromAccount(source);
@@ -260,7 +392,7 @@ class TransactionControllerFunctionalTest {
         transaction.setFromIbanSnapshot(source.getIban());
         transaction.setToIbanSnapshot(destination.getIban());
         transaction.setAmount(new BigDecimal(amount));
-        transaction.setTimestamp(LocalDateTime.now());
+        transaction.setTimestamp(timestamp);
         transaction.setInitiatedBy(initiatedBy);
         return transactionRepository.save(transaction);
     }

@@ -180,6 +180,35 @@ class AccountControllerFunctionalTest {
                 .andExpect(jsonPath("$.errors.dailyLimit").exists());
     }
 
+    // Employees can close a zero-balance account through the account resource endpoint.
+    @Test
+    void closeAccount_forZeroBalanceAccount_returnsInactiveAccount() throws Exception {
+        UserModel employee = savedUser("employee", RoleEnum.ROLE_EMPLOYEE);
+        CustomerProfileModel profile = savedProfile(savedUser("customer", RoleEnum.ROLE_CUSTOMER));
+        savedAccount(profile, "NL11INHO000000107", AccountTypeEnum.CHECKING, "0.00");
+
+        mockMvc.perform(patch("/api/v1/accounts/{iban}/close", "NL11INHO000000107")
+                        .with(csrf())
+                        .with(user(employee)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.iban").value("NL11INHO000000107"))
+                .andExpect(jsonPath("$.isActive").value(false));
+    }
+
+    // Accounts with money still on them cannot be closed through the API.
+    @Test
+    void closeAccount_forNonZeroBalanceAccount_returnsBadRequest() throws Exception {
+        UserModel employee = savedUser("employee", RoleEnum.ROLE_EMPLOYEE);
+        CustomerProfileModel profile = savedProfile(savedUser("customer", RoleEnum.ROLE_CUSTOMER));
+        savedAccount(profile, "NL11INHO000000108", AccountTypeEnum.CHECKING, "25.00");
+
+        mockMvc.perform(patch("/api/v1/accounts/{iban}/close", "NL11INHO000000108")
+                        .with(csrf())
+                        .with(user(employee)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Cannot close an account with a non-zero balance."));
+    }
+
     private UserModel savedUser(String label, RoleEnum role) {
         UserModel user = new UserModel();
         user.setEmail(label + "-" + UUID.randomUUID() + "@example.com");
@@ -198,11 +227,15 @@ class AccountControllerFunctionalTest {
     }
 
     private AccountModel savedAccount(CustomerProfileModel profile, String iban, AccountTypeEnum type) {
+        return savedAccount(profile, iban, type, "1000.00");
+    }
+
+    private AccountModel savedAccount(CustomerProfileModel profile, String iban, AccountTypeEnum type, String balance) {
         AccountModel account = new AccountModel();
         account.setCustomer(profile);
         account.setIban(iban);
         account.setType(type);
-        account.setBalance(new BigDecimal("1000.00"));
+        account.setBalance(new BigDecimal(balance));
         account.setAbsoluteLimit(new BigDecimal("-500.00"));
         account.setDailyLimit(new BigDecimal("1000.00"));
         account.setIsActive(true);
