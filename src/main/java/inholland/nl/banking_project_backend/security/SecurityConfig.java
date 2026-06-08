@@ -90,7 +90,6 @@ public class SecurityConfig {
                         .requestMatchers("/h2-console/**").permitAll()
                         .requestMatchers("/api/v1/auth/me").authenticated()
                         .requestMatchers("/api/v1/auth/**").permitAll()
-                        .requestMatchers("/api/v1/employee/**").hasRole("EMPLOYEE")
                         .requestMatchers("/error").permitAll()
                         .anyRequest().authenticated()
                 )
