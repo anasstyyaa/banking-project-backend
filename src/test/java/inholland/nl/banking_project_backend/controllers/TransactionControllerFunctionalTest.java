@@ -60,8 +60,8 @@ class TransactionControllerFunctionalTest {
     @Test
     void getTransactions_returnsPaginatedResponse() throws Exception {
         UserModel employee = savedUser("employee", RoleEnum.ROLE_EMPLOYEE);
-        AccountModel source = savedAccount(savedProfile(savedUser("source", RoleEnum.ROLE_CUSTOMER)), "NL12INHO000000101", AccountTypeEnum.CHECKING, "1000.00", "-500.00", "1000.00");
-        AccountModel destination = savedAccount(savedProfile(savedUser("destination", RoleEnum.ROLE_CUSTOMER)), "NL12INHO000000102", AccountTypeEnum.CHECKING, "1000.00", "-500.00", "1000.00");
+        AccountModel source = savedAccount(savedProfile(savedUser("source", RoleEnum.ROLE_CUSTOMER)), "NL12INHO0000000101", AccountTypeEnum.CHECKING, "1000.00", "-500.00", "1000.00");
+        AccountModel destination = savedAccount(savedProfile(savedUser("destination", RoleEnum.ROLE_CUSTOMER)), "NL12INHO0000000102", AccountTypeEnum.CHECKING, "1000.00", "-500.00", "1000.00");
         savedTransaction(source, destination, employee, "100.00");
 
         mockMvc.perform(get("/api/v1/transactions")
@@ -79,9 +79,9 @@ class TransactionControllerFunctionalTest {
     void getTransactions_forCustomer_returnsOnlyVisibleTransactions() throws Exception {
         UserModel customer = savedUser("customer", RoleEnum.ROLE_CUSTOMER);
         CustomerProfileModel profile = savedProfile(customer);
-        AccountModel ownAccount = savedAccount(profile, "NL12INHO000000103", AccountTypeEnum.CHECKING, "1000.00", "-500.00", "1000.00");
-        AccountModel otherAccount = savedAccount(savedProfile(savedUser("other", RoleEnum.ROLE_CUSTOMER)), "NL12INHO000000104", AccountTypeEnum.CHECKING, "1000.00", "-500.00", "1000.00");
-        AccountModel unrelatedAccount = savedAccount(savedProfile(savedUser("unrelated", RoleEnum.ROLE_CUSTOMER)), "NL12INHO000000105", AccountTypeEnum.CHECKING, "1000.00", "-500.00", "1000.00");
+        AccountModel ownAccount = savedAccount(profile, "NL12INHO0000000103", AccountTypeEnum.CHECKING, "1000.00", "-500.00", "1000.00");
+        AccountModel otherAccount = savedAccount(savedProfile(savedUser("other", RoleEnum.ROLE_CUSTOMER)), "NL12INHO0000000104", AccountTypeEnum.CHECKING, "1000.00", "-500.00", "1000.00");
+        AccountModel unrelatedAccount = savedAccount(savedProfile(savedUser("unrelated", RoleEnum.ROLE_CUSTOMER)), "NL12INHO0000000105", AccountTypeEnum.CHECKING, "1000.00", "-500.00", "1000.00");
         savedTransaction(ownAccount, otherAccount, customer, "100.00");
         savedTransaction(otherAccount, unrelatedAccount, customer, "75.00");
 
@@ -89,15 +89,15 @@ class TransactionControllerFunctionalTest {
                         .with(user(customer)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content", hasSize(1)))
-                .andExpect(jsonPath("$.content[0].fromIban").value("NL12INHO000000103"));
+                .andExpect(jsonPath("$.content[0].fromIban").value("NL12INHO0000000103"));
     }
 
     // Employee transaction history applies date, amount, IBAN, and pagination filters in the API.
     @Test
     void getTransactions_withDateAmountAndIbanFilters_returnsMatchingTransaction() throws Exception {
         UserModel employee = savedUser("employee", RoleEnum.ROLE_EMPLOYEE);
-        AccountModel source = savedAccount(savedProfile(savedUser("source", RoleEnum.ROLE_CUSTOMER)), "NL12INHO000000116", AccountTypeEnum.CHECKING, "1000.00", "-500.00", "1000.00");
-        AccountModel destination = savedAccount(savedProfile(savedUser("destination", RoleEnum.ROLE_CUSTOMER)), "NL12INHO000000117", AccountTypeEnum.CHECKING, "1000.00", "-500.00", "1000.00");
+        AccountModel source = savedAccount(savedProfile(savedUser("source", RoleEnum.ROLE_CUSTOMER)), "NL12INHO0000000116", AccountTypeEnum.CHECKING, "1000.00", "-500.00", "1000.00");
+        AccountModel destination = savedAccount(savedProfile(savedUser("destination", RoleEnum.ROLE_CUSTOMER)), "NL12INHO0000000117", AccountTypeEnum.CHECKING, "1000.00", "-500.00", "1000.00");
         savedTransaction(source, destination, employee, "123.45", LocalDateTime.of(2026, 1, 15, 10, 0));
         savedTransaction(source, destination, employee, "200.00", LocalDateTime.of(2026, 1, 15, 11, 0));
 
@@ -120,9 +120,9 @@ class TransactionControllerFunctionalTest {
     void getTransactions_withCustomerUserIdFilter_returnsOnlyThatCustomerTransactions() throws Exception {
         UserModel employee = savedUser("employee", RoleEnum.ROLE_EMPLOYEE);
         UserModel customer = savedUser("customer", RoleEnum.ROLE_CUSTOMER);
-        AccountModel customerAccount = savedAccount(savedProfile(customer), "NL12INHO000000118", AccountTypeEnum.CHECKING, "1000.00", "-500.00", "1000.00");
-        AccountModel otherAccount = savedAccount(savedProfile(savedUser("other", RoleEnum.ROLE_CUSTOMER)), "NL12INHO000000119", AccountTypeEnum.CHECKING, "1000.00", "-500.00", "1000.00");
-        AccountModel destination = savedAccount(savedProfile(savedUser("destination", RoleEnum.ROLE_CUSTOMER)), "NL12INHO000000120", AccountTypeEnum.CHECKING, "1000.00", "-500.00", "1000.00");
+        AccountModel customerAccount = savedAccount(savedProfile(customer), "NL12INHO0000000118", AccountTypeEnum.CHECKING, "1000.00", "-500.00", "1000.00");
+        AccountModel otherAccount = savedAccount(savedProfile(savedUser("other", RoleEnum.ROLE_CUSTOMER)), "NL12INHO0000000119", AccountTypeEnum.CHECKING, "1000.00", "-500.00", "1000.00");
+        AccountModel destination = savedAccount(savedProfile(savedUser("destination", RoleEnum.ROLE_CUSTOMER)), "NL12INHO0000000120", AccountTypeEnum.CHECKING, "1000.00", "-500.00", "1000.00");
         savedTransaction(customerAccount, destination, employee, "50.00");
         savedTransaction(otherAccount, destination, employee, "60.00");
 
@@ -138,8 +138,8 @@ class TransactionControllerFunctionalTest {
     @Test
     void createTransaction_customerTransfer_returnsCreated() throws Exception {
         UserModel customer = savedUser("customer", RoleEnum.ROLE_CUSTOMER);
-        AccountModel source = savedAccount(savedProfile(customer), "NL12INHO000000106", AccountTypeEnum.CHECKING, "1000.00", "-500.00", "1000.00");
-        AccountModel destination = savedAccount(savedProfile(savedUser("destination", RoleEnum.ROLE_CUSTOMER)), "NL12INHO000000107", AccountTypeEnum.CHECKING, "250.00", "-500.00", "1000.00");
+        AccountModel source = savedAccount(savedProfile(customer), "NL12INHO0000000106", AccountTypeEnum.CHECKING, "1000.00", "-500.00", "1000.00");
+        AccountModel destination = savedAccount(savedProfile(savedUser("destination", RoleEnum.ROLE_CUSTOMER)), "NL12INHO0000000107", AccountTypeEnum.CHECKING, "250.00", "-500.00", "1000.00");
         Map<String, Object> request = Map.of(
                 "type", "TRANSFER",
                 "fromIban", source.getIban(),
@@ -164,8 +164,8 @@ class TransactionControllerFunctionalTest {
     void createTransaction_customerOwnSavingsToCheckingTransfer_returnsCreated() throws Exception {
         UserModel customer = savedUser("customer", RoleEnum.ROLE_CUSTOMER);
         CustomerProfileModel profile = savedProfile(customer);
-        AccountModel source = savedAccount(profile, "NL12INHO000000121", AccountTypeEnum.SAVINGS, "1000.00", "-500.00", "1000.00");
-        AccountModel destination = savedAccount(profile, "NL12INHO000000122", AccountTypeEnum.CHECKING, "250.00", "-500.00", "1000.00");
+        AccountModel source = savedAccount(profile, "NL12INHO0000000121", AccountTypeEnum.SAVINGS, "1000.00", "-500.00", "1000.00");
+        AccountModel destination = savedAccount(profile, "NL12INHO0000000122", AccountTypeEnum.CHECKING, "250.00", "-500.00", "1000.00");
         Map<String, Object> request = Map.of(
                 "type", "TRANSFER",
                 "fromIban", source.getIban(),
@@ -187,8 +187,8 @@ class TransactionControllerFunctionalTest {
     @Test
     void createTransaction_customerExternalSavingsTransfer_returnsBadRequest() throws Exception {
         UserModel customer = savedUser("customer", RoleEnum.ROLE_CUSTOMER);
-        AccountModel source = savedAccount(savedProfile(customer), "NL12INHO000000123", AccountTypeEnum.SAVINGS, "1000.00", "-500.00", "1000.00");
-        AccountModel destination = savedAccount(savedProfile(savedUser("destination", RoleEnum.ROLE_CUSTOMER)), "NL12INHO000000124", AccountTypeEnum.CHECKING, "250.00", "-500.00", "1000.00");
+        AccountModel source = savedAccount(savedProfile(customer), "NL12INHO0000000123", AccountTypeEnum.SAVINGS, "1000.00", "-500.00", "1000.00");
+        AccountModel destination = savedAccount(savedProfile(savedUser("destination", RoleEnum.ROLE_CUSTOMER)), "NL12INHO0000000124", AccountTypeEnum.CHECKING, "250.00", "-500.00", "1000.00");
         Map<String, Object> request = Map.of(
                 "type", "TRANSFER",
                 "fromIban", source.getIban(),
@@ -209,8 +209,8 @@ class TransactionControllerFunctionalTest {
     @Test
     void createTransaction_employeeCheckingTransfer_returnsCreated() throws Exception {
         UserModel employee = savedUser("employee", RoleEnum.ROLE_EMPLOYEE);
-        AccountModel source = savedAccount(savedProfile(savedUser("source", RoleEnum.ROLE_CUSTOMER)), "NL12INHO000000108", AccountTypeEnum.CHECKING, "1000.00", "-500.00", "1000.00");
-        AccountModel destination = savedAccount(savedProfile(savedUser("destination", RoleEnum.ROLE_CUSTOMER)), "NL12INHO000000109", AccountTypeEnum.CHECKING, "250.00", "-500.00", "1000.00");
+        AccountModel source = savedAccount(savedProfile(savedUser("source", RoleEnum.ROLE_CUSTOMER)), "NL12INHO0000000108", AccountTypeEnum.CHECKING, "1000.00", "-500.00", "1000.00");
+        AccountModel destination = savedAccount(savedProfile(savedUser("destination", RoleEnum.ROLE_CUSTOMER)), "NL12INHO0000000109", AccountTypeEnum.CHECKING, "250.00", "-500.00", "1000.00");
         Map<String, Object> request = Map.of(
                 "type", "TRANSFER",
                 "fromIban", source.getIban(),
@@ -231,7 +231,7 @@ class TransactionControllerFunctionalTest {
     @Test
     void createTransaction_employeeDeposit_returnsBadRequest() throws Exception {
         UserModel employee = savedUser("employee", RoleEnum.ROLE_EMPLOYEE);
-        AccountModel destination = savedAccount(savedProfile(savedUser("destination", RoleEnum.ROLE_CUSTOMER)), "NL12INHO000000110", AccountTypeEnum.CHECKING, "250.00", "-500.00", "1000.00");
+        AccountModel destination = savedAccount(savedProfile(savedUser("destination", RoleEnum.ROLE_CUSTOMER)), "NL12INHO0000000110", AccountTypeEnum.CHECKING, "250.00", "-500.00", "1000.00");
         Map<String, Object> request = Map.of(
                 "type", "DEPOSIT",
                 "toIban", destination.getIban(),
@@ -251,7 +251,7 @@ class TransactionControllerFunctionalTest {
     @Test
     void createTransaction_customerDepositToSavings_returnsBadRequest() throws Exception {
         UserModel customer = savedUser("customer", RoleEnum.ROLE_CUSTOMER);
-        AccountModel destination = savedAccount(savedProfile(customer), "NL12INHO000000125", AccountTypeEnum.SAVINGS, "250.00", "-500.00", "1000.00");
+        AccountModel destination = savedAccount(savedProfile(customer), "NL12INHO0000000125", AccountTypeEnum.SAVINGS, "250.00", "-500.00", "1000.00");
         Map<String, Object> request = Map.of(
                 "type", "DEPOSIT",
                 "toIban", destination.getIban(),
@@ -271,7 +271,7 @@ class TransactionControllerFunctionalTest {
     @Test
     void createTransaction_customerWithdrawalFromSavings_returnsBadRequest() throws Exception {
         UserModel customer = savedUser("customer", RoleEnum.ROLE_CUSTOMER);
-        AccountModel source = savedAccount(savedProfile(customer), "NL12INHO000000126", AccountTypeEnum.SAVINGS, "250.00", "-500.00", "1000.00");
+        AccountModel source = savedAccount(savedProfile(customer), "NL12INHO0000000126", AccountTypeEnum.SAVINGS, "250.00", "-500.00", "1000.00");
         Map<String, Object> request = Map.of(
                 "type", "WITHDRAWAL",
                 "fromIban", source.getIban(),
@@ -291,8 +291,8 @@ class TransactionControllerFunctionalTest {
     @Test
     void createTransaction_whenDailyLimitExceeded_returnsUnprocessableEntity() throws Exception {
         UserModel customer = savedUser("customer", RoleEnum.ROLE_CUSTOMER);
-        AccountModel source = savedAccount(savedProfile(customer), "NL12INHO000000111", AccountTypeEnum.CHECKING, "1000.00", "-500.00", "100.00");
-        AccountModel destination = savedAccount(savedProfile(savedUser("destination", RoleEnum.ROLE_CUSTOMER)), "NL12INHO000000112", AccountTypeEnum.CHECKING, "250.00", "-500.00", "1000.00");
+        AccountModel source = savedAccount(savedProfile(customer), "NL12INHO0000000111", AccountTypeEnum.CHECKING, "1000.00", "-500.00", "100.00");
+        AccountModel destination = savedAccount(savedProfile(savedUser("destination", RoleEnum.ROLE_CUSTOMER)), "NL12INHO0000000112", AccountTypeEnum.CHECKING, "250.00", "-500.00", "1000.00");
         Map<String, Object> request = Map.of(
                 "type", "TRANSFER",
                 "fromIban", source.getIban(),
@@ -313,7 +313,7 @@ class TransactionControllerFunctionalTest {
     @Test
     void createTransaction_whenDepositDailyLimitExceeded_returnsUnprocessableEntity() throws Exception {
         UserModel customer = savedUser("customer", RoleEnum.ROLE_CUSTOMER);
-        AccountModel destination = savedAccount(savedProfile(customer), "NL12INHO000000127", AccountTypeEnum.CHECKING, "1000.00", "-500.00", "100.00");
+        AccountModel destination = savedAccount(savedProfile(customer), "NL12INHO0000000127", AccountTypeEnum.CHECKING, "1000.00", "-500.00", "100.00");
         savedDepositTransaction(destination, customer, "80.00");
         Map<String, Object> request = Map.of(
                 "type", "DEPOSIT",
@@ -334,8 +334,8 @@ class TransactionControllerFunctionalTest {
     @Test
     void createTransaction_whenAbsoluteLimitExceeded_returnsUnprocessableEntity() throws Exception {
         UserModel customer = savedUser("customer", RoleEnum.ROLE_CUSTOMER);
-        AccountModel source = savedAccount(savedProfile(customer), "NL12INHO000000113", AccountTypeEnum.CHECKING, "100.00", "0.00", "1000.00");
-        AccountModel destination = savedAccount(savedProfile(savedUser("destination", RoleEnum.ROLE_CUSTOMER)), "NL12INHO000000114", AccountTypeEnum.CHECKING, "250.00", "-500.00", "1000.00");
+        AccountModel source = savedAccount(savedProfile(customer), "NL12INHO0000000113", AccountTypeEnum.CHECKING, "100.00", "0.00", "1000.00");
+        AccountModel destination = savedAccount(savedProfile(savedUser("destination", RoleEnum.ROLE_CUSTOMER)), "NL12INHO0000000114", AccountTypeEnum.CHECKING, "250.00", "-500.00", "1000.00");
         Map<String, Object> request = Map.of(
                 "type", "TRANSFER",
                 "fromIban", source.getIban(),
@@ -356,7 +356,7 @@ class TransactionControllerFunctionalTest {
     @Test
     void createTransaction_missingTransferSource_returnsBadRequest() throws Exception {
         UserModel customer = savedUser("customer", RoleEnum.ROLE_CUSTOMER);
-        AccountModel destination = savedAccount(savedProfile(savedUser("destination", RoleEnum.ROLE_CUSTOMER)), "NL12INHO000000115", AccountTypeEnum.CHECKING, "250.00", "-500.00", "1000.00");
+        AccountModel destination = savedAccount(savedProfile(savedUser("destination", RoleEnum.ROLE_CUSTOMER)), "NL12INHO0000000115", AccountTypeEnum.CHECKING, "250.00", "-500.00", "1000.00");
         Map<String, Object> request = Map.of(
                 "type", "TRANSFER",
                 "toIban", destination.getIban(),
