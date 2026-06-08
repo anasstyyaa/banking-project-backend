@@ -2,6 +2,7 @@ package inholland.nl.banking_project_backend.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import inholland.nl.banking_project_backend.dtos.UserDTO;
+import inholland.nl.banking_project_backend.mappers.UserMapper;
 import inholland.nl.banking_project_backend.services.JWTService;
 import inholland.nl.banking_project_backend.services.UserService;
 import org.junit.jupiter.api.Test;
@@ -14,6 +15,7 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.web.servlet.MockMvc;
+import inholland.nl.banking_project_backend.mappers.UserMapper;
 
 import java.math.BigDecimal;
 import java.security.Principal;
@@ -31,7 +33,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ExtendWith(SpringExtension.class)
 @WebMvcTest(UserController.class) // Inicializa únicamente el contexto web para este controlador
 @AutoConfigureMockMvc(addFilters = false)
-class UserControllerTest {
+class UserControllerFunctionalTest {
 
     @Autowired
     private MockMvc mockMvc; // Simulador de peticiones HTTP de Spring
@@ -42,8 +44,14 @@ class UserControllerTest {
     @MockBean
     private JWTService jwtService;
 
+    @MockBean
+    private UserMapper userMapper;
+
     @Autowired
     private ObjectMapper objectMapper; // Herramienta para convertir objetos Java a cadenas JSON
+
+    @MockBean
+    private UserMapper userMapper;
 
     @Test
     void dadaUnaSesionActiva_cuandoSeSolicitaPerfil_debeRetornarEstadoOkYDatosDelUsuario() throws Exception {
