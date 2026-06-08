@@ -5,6 +5,7 @@ import inholland.nl.banking_project_backend.enums.AccountTypeEnum;
 import inholland.nl.banking_project_backend.enums.TransactionTypeEnum;
 import inholland.nl.banking_project_backend.exceptions.LimitExceededException;
 import inholland.nl.banking_project_backend.models.AccountModel;
+import inholland.nl.banking_project_backend.models.CustomerProfileModel;
 import inholland.nl.banking_project_backend.repositories.TransactionRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -57,6 +58,40 @@ class TransactionPolicyTest {
     void validateCustomerTransfer_throwsWhenAccountsAreTheSame() {
         assertThrows(IllegalArgumentException.class,
                 () -> transactionPolicy.validateCustomerTransfer(transfer("100.00"), source, source));
+    }
+
+    // Customers can transfer between their own savings and checking accounts.
+    @Test
+    void validateCustomerTransfer_allowsOwnSavingsToCheckingTransfer() {
+        CustomerProfileModel owner = customer(1L);
+        source.setCustomer(owner);
+        destination.setCustomer(owner);
+        source.setType(AccountTypeEnum.SAVINGS);
+        whenDailyTotalIs("100.00");
+
+        assertDoesNotThrow(() -> transactionPolicy.validateCustomerTransfer(transfer("200.00"), source, destination));
+    }
+
+    // Customers cannot send external transfers from savings accounts.
+    @Test
+    void validateCustomerTransfer_throwsForExternalSavingsSource() {
+        source.setCustomer(customer(1L));
+        destination.setCustomer(customer(2L));
+        source.setType(AccountTypeEnum.SAVINGS);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> transactionPolicy.validateCustomerTransfer(transfer("100.00"), source, destination));
+    }
+
+    // Customers cannot send external transfers to another customer's savings account.
+    @Test
+    void validateCustomerTransfer_throwsForExternalSavingsDestination() {
+        source.setCustomer(customer(1L));
+        destination.setCustomer(customer(2L));
+        destination.setType(AccountTypeEnum.SAVINGS);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> transactionPolicy.validateCustomerTransfer(transfer("100.00"), source, destination));
     }
 
     // Employee transfers must move money between checking accounts.
@@ -143,5 +178,11 @@ class TransactionPolicyTest {
         account.setDailyLimit(new BigDecimal(dailyLimit));
         account.setIsActive(true);
         return account;
+    }
+
+    private CustomerProfileModel customer(Long id) {
+        CustomerProfileModel customer = new CustomerProfileModel();
+        customer.setId(id);
+        return customer;
     }
 }

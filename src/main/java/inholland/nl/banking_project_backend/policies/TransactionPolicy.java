@@ -5,6 +5,7 @@ import inholland.nl.banking_project_backend.enums.AccountTypeEnum;
 import inholland.nl.banking_project_backend.enums.TransactionTypeEnum;
 import inholland.nl.banking_project_backend.exceptions.LimitExceededException;
 import inholland.nl.banking_project_backend.models.AccountModel;
+import inholland.nl.banking_project_backend.models.CustomerProfileModel;
 import inholland.nl.banking_project_backend.repositories.TransactionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -28,6 +29,7 @@ public class TransactionPolicy {
         requireOpenAccount(source);
         requireOpenAccount(destination);
         requireDifferentAccounts(source, destination);
+        requireExternalCustomerTransferAccounts(source, destination);
         requireOutgoingLimits(source, request.amount());
     }
 
@@ -38,7 +40,7 @@ public class TransactionPolicy {
         requireAccountField(destination, "Transfer requires a destination IBAN.");
         requireOpenAccount(source);
         requireOpenAccount(destination);
-        requireCheckingTransfer(source, destination);
+        requireCheckingTransfer(source, destination, "Employees can only transfer between checking accounts.");
         requireDifferentAccounts(source, destination);
         requireOutgoingLimits(source, request.amount());
     }
@@ -88,11 +90,34 @@ public class TransactionPolicy {
         }
     }
 
-    // Ensures employee transfers only move money between customer checking accounts.
-    private void requireCheckingTransfer(AccountModel source, AccountModel destination) {
-        if (source.getType() != AccountTypeEnum.CHECKING || destination.getType() != AccountTypeEnum.CHECKING) {
-            throw new IllegalArgumentException("Employees can only transfer between checking accounts.");
+    // Ensures customer transfers to another customer only use checking accounts.
+    private void requireExternalCustomerTransferAccounts(AccountModel source, AccountModel destination) {
+        if (!accountsBelongToSameCustomer(source, destination)) {
+            requireCheckingTransfer(source, destination, "External customer transfers can only be made between checking accounts.");
         }
+    }
+
+    // Ensures transfers that must use checking accounts do not involve savings accounts.
+    private void requireCheckingTransfer(AccountModel source, AccountModel destination, String message) {
+        if (source.getType() != AccountTypeEnum.CHECKING || destination.getType() != AccountTypeEnum.CHECKING) {
+            throw new IllegalArgumentException(message);
+        }
+    }
+
+    // Compares account ownership without requiring fully initialized entity equality.
+    private boolean accountsBelongToSameCustomer(AccountModel source, AccountModel destination) {
+        CustomerProfileModel sourceCustomer = source.getCustomer();
+        CustomerProfileModel destinationCustomer = destination.getCustomer();
+
+        if (sourceCustomer == null || destinationCustomer == null) {
+            return false;
+        }
+
+        if (sourceCustomer.getId() != null && destinationCustomer.getId() != null) {
+            return sourceCustomer.getId().equals(destinationCustomer.getId());
+        }
+
+        return sourceCustomer == destinationCustomer;
     }
 
     // Ensures ATM cash operations only use checking accounts.
