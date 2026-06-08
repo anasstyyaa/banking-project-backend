@@ -187,8 +187,7 @@ public class UserService implements UserDetailsService {
     }
 
     private List<AccountModel> getAccountsForProfile(UserModel user) {
-        return accountRepository.findAccounts(user.getEmail(), Pageable.unpaged()).getContent();
-    }
+        return accountRepository.findAccounts(user.getEmail(), null, Pageable.unpaged()).getContent();    }
 
     // Keeps account mapping limited to fields the customer may view.
     private UserDTO.AccountDetailsResponse toAccountDetailsResponse(AccountModel account) {

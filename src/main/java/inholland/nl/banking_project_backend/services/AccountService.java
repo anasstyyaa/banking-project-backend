@@ -59,9 +59,13 @@ public class AccountService {
         return accountMapper.toResponse(savedAccount);
     }
 
-    // Returns open accounts using an optional owner scope, if an emplyee return all, if owner only shows the specific thing for that owner.
-    public Page<AccountResponseDTO> getAccounts(String ownerEmail, Pageable pageable) {
-        return accountRepository.findAccounts(ownerEmail, pageable)
+    // Returns open accounts using an optional owner scope, if an employee return all, if owner only shows the specific thing for that owner.
+    public Page<AccountResponseDTO> getAccounts(String ownerEmail, String search, Pageable pageable) {
+        if (search != null && !search.isBlank()) {
+            return accountRepository.searchAccounts(search, pageable)
+                    .map(accountMapper::toResponse);
+        }
+        return accountRepository.findAccounts(ownerEmail,null, pageable)
                 .map(accountMapper::toResponse);
     }
 

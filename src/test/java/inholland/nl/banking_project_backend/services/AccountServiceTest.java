@@ -125,11 +125,11 @@ class AccountServiceTest {
     @Test
     void getAccounts_returnsMappedPage() {
         Pageable pageable = PageRequest.of(0, 20);
-        when(accountRepository.findAccounts("customer@example.com", pageable))
+        when(accountRepository.findAccounts("customer@example.com", null, pageable))
                 .thenReturn(new PageImpl<>(List.of(account), pageable, 1));
         when(accountMapper.toResponse(account)).thenReturn(accountResponse);
 
-        Page<AccountResponseDTO> result = accountService.getAccounts("customer@example.com", pageable);
+        Page<AccountResponseDTO> result = accountService.getAccounts("customer@example.com", null, pageable);
 
         assertEquals(1, result.getTotalElements());
         assertEquals(accountResponse, result.getContent().getFirst());

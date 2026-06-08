@@ -39,10 +39,11 @@ public class AccountController {
     @GetMapping
     public ResponseEntity<Page<AccountResponseDTO>> getAccounts(
             @AuthenticationPrincipal UserModel currentUser,
+            @RequestParam(required = false) String search,
             @PageableDefault(size = 20) Pageable pageable
     ) {
         String ownerEmail = currentUser.getRole() == RoleEnum.ROLE_EMPLOYEE ? null : currentUser.getEmail();
-        return ResponseEntity.ok(accountService.getAccounts(ownerEmail, pageable));
+        return ResponseEntity.ok(accountService.getAccounts(ownerEmail, search, pageable));
     }
 
     // Returns one active account visible to the authenticated user.

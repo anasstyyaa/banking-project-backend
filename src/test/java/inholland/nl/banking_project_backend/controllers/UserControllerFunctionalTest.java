@@ -1,123 +1,223 @@
 package inholland.nl.banking_project_backend.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import inholland.nl.banking_project_backend.dtos.UserDTO;
-import inholland.nl.banking_project_backend.mappers.UserMapper;
-import inholland.nl.banking_project_backend.services.JWTService;
-import inholland.nl.banking_project_backend.services.UserService;
+import inholland.nl.banking_project_backend.models.RoleEnum;
+import inholland.nl.banking_project_backend.models.UserModel;
+import inholland.nl.banking_project_backend.repositories.AccountRepository;
+import inholland.nl.banking_project_backend.repositories.CustomerProfileRepository;
+import inholland.nl.banking_project_backend.repositories.UserRepository;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.web.servlet.MockMvc;
-import inholland.nl.banking_project_backend.mappers.UserMapper;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.security.Principal;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
-import static org.hamcrest.Matchers.is;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
-import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@ExtendWith(SpringExtension.class)
-@WebMvcTest(UserController.class) // Inicializa únicamente el contexto web para este controlador
-@AutoConfigureMockMvc(addFilters = false)
+
+@SpringBootTest
+@AutoConfigureMockMvc
+@Transactional
 class UserControllerFunctionalTest {
 
     @Autowired
-    private MockMvc mockMvc; // Simulador de peticiones HTTP de Spring
-
-    @MockBean
-    private UserService userService; // Reemplaza el servicio real por un mock dentro del contexto web
-
-    @MockBean
-    private JWTService jwtService;
-
-    @MockBean
-    private UserMapper userMapper;
+    private MockMvc mockMvc;
 
     @Autowired
-    private ObjectMapper objectMapper; // Herramienta para convertir objetos Java a cadenas JSON
+    private ObjectMapper objectMapper;
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private CustomerProfileRepository customerProfileRepository;
+
+    @Autowired
+    private AccountRepository accountRepository;
+
+    //Profile endpoints
 
     @Test
-    void dadaUnaSesionActiva_cuandoSeSolicitaPerfil_debeRetornarEstadoOkYDatosDelUsuario() throws Exception {
-        // 1. Arrange (Preparar el escenario)
-        String emailSimulado = "bank.user@inholland.nl";
-        
-        UserDTO.ProfileResponse respuestaSimulada = new UserDTO.ProfileResponse(
-                emailSimulado,
-                "John",
-                "Doe",
-                "NL01INHO000000001",
-                "123456782",
-                "+31612345678",
-                BigDecimal.ZERO,
-                List.of()
-        );
+    void getProfile_forAuthenticatedCustomer_returnsOwnProfile() throws Exception {
+        UserModel customer = savedUser("ProfileOwner", RoleEnum.ROLE_CUSTOMER, true);
 
-        // Simulamos el comportamiento del servicio
-        when(userService.getProfile(emailSimulado)).thenReturn(respuestaSimulada);
-
-        // Simulamos un objeto Principal para representar al usuario logueado en Spring Security
-        Principal principalSimulado = Mockito.mock(Principal.class);
-        when(principalSimulado.getName()).thenReturn(emailSimulado);
-
-        // 2. Act & 3. Assert (Actuar y Verificar en cadena con MockMvc)
         mockMvc.perform(get("/api/v1/users/profile")
-                        .principal(principalSimulado) // Adjuntamos el usuario autenticado a la petición
-                        .accept(MediaType.APPLICATION_JSON))
-                .andDo(print()) // Imprime los detalles HTTP por consola para debugging
-                .andExpect(status().isOk()) // Verifica HTTP 200 OK
-                .andExpect(jsonPath("$.email", is(emailSimulado))) // Valida el contenido del JSON
-                .andExpect(jsonPath("$.firstName", is("John")))
-                .andExpect(jsonPath("$.lastName", is("Doe")));
+                        .with(user(customer)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email").value(customer.getEmail()))
+                .andExpect(jsonPath("$.firstName").value("ProfileOwner"));
     }
 
     @Test
-    void dadoUnPayloadValido_cuandoSeActualizaPerfil_debeRetornarEstadoOkYConfirmacion() throws Exception {
-        // 1. Arrange (Preparar el escenario)
-        UserDTO.UpdateProfileRequest peticionDto = new UserDTO.UpdateProfileRequest(
-                "new.email@inholland.nl",
-                "+31612345678"
+    void updateProfile_withValidPayload_returnsUpdatedProfileAndNewToken() throws Exception {
+        UserModel customer = savedUser("UpdateTarget", RoleEnum.ROLE_CUSTOMER, true);
+        Map<String, Object> request = Map.of(
+                "email", "updated-" + UUID.randomUUID() + "@example.com",
+                "phoneNumber", "+31611112222"
         );
 
-        UserDTO.UpdateProfileResponse respuestaSimulada = new UserDTO.UpdateProfileResponse(
-                "new.email@inholland.nl",
-                "John",
-                "Doe",
-                "NL01INHO000000001",
-                "123456782",
-                "+31612345678",
-                BigDecimal.ZERO,
-                List.of(),
-                "newToken",
-                inholland.nl.banking_project_backend.models.RoleEnum.ROLE_CUSTOMER
-        );
-
-        // Configuramos el mock del servicio
-        when(userService.updateProfile(any(UserDTO.UpdateProfileRequest.class))).thenReturn(respuestaSimulada);
-
-        // Convertimos el objeto de petición Java a una cadena de texto JSON
-        String jsonRequestBody = objectMapper.writeValueAsString(peticionDto);
-
-        // 2. Act & 3. Assert
         mockMvc.perform(put("/api/v1/users/profile")
+                .with(user(customer))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)));
+    }
+
+    //Registration endpoints (employee-only)
+
+    @Test
+    void getRegistrations_forEmployee_returnsPaginatedPendingUsers() throws Exception {
+        UserModel employee = savedUser("Employee", RoleEnum.ROLE_EMPLOYEE, true);
+        savedPendingUser("PendingOne");
+        savedPendingUser("PendingTwo");
+
+        mockMvc.perform(get("/api/v1/users/registrations")
+                        .param("status", "PENDING")
+                        .with(user(employee)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.totalElements").isNumber());
+    }
+
+    @Test
+    void getRegistrations_forCustomer_returnsForbidden() throws Exception {
+        UserModel customer = savedUser("NosyCustomer", RoleEnum.ROLE_CUSTOMER, true);
+
+        mockMvc.perform(get("/api/v1/users/registrations")
+                        .param("status", "PENDING")
+                        .with(user(customer)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void updateRegistrationStatus_approveWithCustomLimits_provisionsAccountsWithThoseLimits() throws Exception {
+        UserModel employee = savedUser("Approver", RoleEnum.ROLE_EMPLOYEE, true);
+        UserModel pending = savedPendingUser("ApproveMe");
+
+        Map<String, Object> request = Map.of(
+                "status", "APPROVED",
+                "absoluteLimit", -250,
+                "dailyLimit", 750
+        );
+
+        mockMvc.perform(patch("/api/v1/users/registrations/{id}", pending.getId())
+                        .with(user(employee))
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(jsonRequestBody)) // Enviamos el JSON en el cuerpo del método PUT
-                .andDo(print())
-                .andExpect(status().isOk()) // Verifica HTTP 200 OK
-                .andExpect(jsonPath("$.email", is("new.email@inholland.nl")))
-                .andExpect(jsonPath("$.token", is("newToken")));
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isNoContent());
+
+        UserModel updated = userRepository.findById(pending.getId()).orElseThrow();
+        assertTrue(updated.getIsApproved());
+        assertNotNull(updated.getIban());
+
+        List<inholland.nl.banking_project_backend.models.AccountModel> accounts =
+                accountRepository.findAccounts(updated.getEmail(), null, Pageable.unpaged()).getContent();
+
+        assertEquals(2, accounts.size());
+        accounts.forEach(account -> {
+            assertEquals(0, new BigDecimal("-250.00").compareTo(account.getAbsoluteLimit()));
+            assertEquals(0, new BigDecimal("750.00").compareTo(account.getDailyLimit()));
+        });
+    }
+
+    @Test
+    void updateRegistrationStatus_approveWithoutLimits_fallsBackToDefaultLimits() throws Exception {
+        UserModel employee = savedUser("ApproverDefault", RoleEnum.ROLE_EMPLOYEE, true);
+        UserModel pending = savedPendingUser("DefaultLimits");
+
+        Map<String, Object> request = Map.of("status", "APPROVED");
+
+        mockMvc.perform(patch("/api/v1/users/registrations/{id}", pending.getId())
+                        .with(user(employee))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isNoContent());
+
+        List<inholland.nl.banking_project_backend.models.AccountModel> accounts =
+                accountRepository.findAccounts(pending.getEmail(), null, Pageable.unpaged()).getContent();
+
+        assertEquals(2, accounts.size());
+        accounts.forEach(account -> {
+            assertEquals(0, new BigDecimal("-500.00").compareTo(account.getAbsoluteLimit()));
+            assertEquals(0, new BigDecimal("1000.00").compareTo(account.getDailyLimit()));
+        });
+    }
+
+    @Test
+    void updateRegistrationStatus_deny_removesRegistrationRecord() throws Exception {
+        UserModel employee = savedUser("Denier", RoleEnum.ROLE_EMPLOYEE, true);
+        UserModel pending = savedPendingUser("DenyMe");
+
+        Map<String, Object> request = Map.of("status", "DENIED");
+
+        mockMvc.perform(patch("/api/v1/users/registrations/{id}", pending.getId())
+                        .with(user(employee))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isNoContent());
+
+        assertFalse(userRepository.existsById(pending.getId()));
+    }
+
+    @Test
+    void updateRegistrationStatus_forCustomer_returnsForbidden() throws Exception {
+        UserModel customer = savedUser("NotAnEmployee", RoleEnum.ROLE_CUSTOMER, true);
+        UserModel pending = savedPendingUser("OffLimits");
+
+        Map<String, Object> request = Map.of("status", "APPROVED");
+
+        mockMvc.perform(patch("/api/v1/users/registrations/{id}", pending.getId())
+                        .with(user(customer)).
+                        with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isForbidden());
+    }
+
+    private UserModel savedUser(String label, RoleEnum role, boolean isApproved) {
+        UserModel user = new UserModel();
+        user.setEmail(label.toLowerCase() + "-" + UUID.randomUUID() + "@example.com");
+        user.setPassword("password");
+        user.setFirstName(label);
+        user.setLastName("User");
+        user.setBsn("123456782");
+        user.setPhoneNumber("+31611111111");
+        user.setRole(role);
+        user.setIsApproved(isApproved);
+        return userRepository.save(user);
+    }
+
+    private UserModel savedPendingUser(String label) {
+        UserModel user = new UserModel();
+        user.setEmail(label.toLowerCase() + "-" + UUID.randomUUID() + "@example.com");
+        user.setPassword("password");
+        user.setFirstName(label);
+        user.setLastName("Applicant");
+        user.setBsn("123456782");
+        user.setPhoneNumber("+31611111111");
+        user.setRole(RoleEnum.ROLE_CUSTOMER);
+        user.setIsApproved(false);
+        return userRepository.save(user);
     }
 }
