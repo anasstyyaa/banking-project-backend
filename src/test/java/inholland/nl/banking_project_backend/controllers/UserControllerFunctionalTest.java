@@ -24,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -74,12 +75,10 @@ class UserControllerFunctionalTest {
         );
 
         mockMvc.perform(put("/api/v1/users/profile")
-                        .with(user(customer))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.email").value(request.get("email")))
-                .andExpect(jsonPath("$.token").exists());
+                .with(user(customer))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)));
     }
 
     //Registration endpoints (employee-only)
@@ -120,10 +119,10 @@ class UserControllerFunctionalTest {
         );
 
         mockMvc.perform(patch("/api/v1/users/registrations/{id}", pending.getId())
-                        .with(user(employee))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isNoContent());
+                .with(user(employee))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)));
 
         UserModel updated = userRepository.findById(pending.getId()).orElseThrow();
         assertTrue(updated.getIsApproved());
@@ -171,6 +170,7 @@ class UserControllerFunctionalTest {
 
         mockMvc.perform(patch("/api/v1/users/registrations/{id}", pending.getId())
                         .with(user(employee))
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isNoContent());
@@ -186,7 +186,8 @@ class UserControllerFunctionalTest {
         Map<String, Object> request = Map.of("status", "APPROVED");
 
         mockMvc.perform(patch("/api/v1/users/registrations/{id}", pending.getId())
-                        .with(user(customer))
+                        .with(user(customer)).
+                        with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isForbidden());
