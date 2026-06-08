@@ -50,9 +50,6 @@ class UserControllerFunctionalTest {
     @Autowired
     private ObjectMapper objectMapper; // Herramienta para convertir objetos Java a cadenas JSON
 
-    @MockBean
-    private UserMapper userMapper;
-
     @Test
     void dadaUnaSesionActiva_cuandoSeSolicitaPerfil_debeRetornarEstadoOkYDatosDelUsuario() throws Exception {
         // 1. Arrange (Preparar el escenario)
