@@ -147,6 +147,7 @@ class UserControllerFunctionalTest {
 
         mockMvc.perform(patch("/api/v1/users/registrations/{id}", pending.getId())
                         .with(user(employee))
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isNoContent());
