@@ -1,6 +1,7 @@
 package inholland.nl.banking_project_backend.services;
 
 import inholland.nl.banking_project_backend.dtos.UserDTO;
+import inholland.nl.banking_project_backend.exceptions.UserAlreadyExistsException;
 import inholland.nl.banking_project_backend.mappers.UserMapper;
 import inholland.nl.banking_project_backend.models.UserModel;
 import lombok.RequiredArgsConstructor;
@@ -27,7 +28,7 @@ public class AuthService {
 
     public UserDTO.LoginResponse register(UserDTO.RegisterRequest dto) {
         if (userService.existsByEmail(dto.email())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already exists");
+            throw new UserAlreadyExistsException("Email already exists");
         }
 
         if (!isValidBSN(dto.bsn())) {
