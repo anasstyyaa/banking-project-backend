@@ -1,10 +1,15 @@
 package inholland.nl.banking_project_backend.controllers;
 
 import inholland.nl.banking_project_backend.dtos.UserDTO;
+import inholland.nl.banking_project_backend.enums.RegistrationDecisionEnum;
 import inholland.nl.banking_project_backend.mappers.UserMapper;
 import inholland.nl.banking_project_backend.models.UserModel;
 import inholland.nl.banking_project_backend.services.UserService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -17,35 +22,29 @@ public class EmployeeController {
     private final UserService userService;
     private final UserMapper userMapper;
 
-    // Returns customers waiting for employee approval.
-    @GetMapping("/pending")
-    public ResponseEntity<List<UserDTO.RegistrationRequest>> getPendingRegistrations() {
-        return ResponseEntity.ok(
-                userService.getPendingUsers()
-                        .stream()
-                        .map(userMapper::toRegistrationRequest)
-                        .toList()
-        );
+    @GetMapping("/registrations")
+    public ResponseEntity<Page<UserDTO.RegistrationRequest>> getRegistrations(
+            @RequestParam(defaultValue = "PENDING") String status,
+            @RequestParam(required = false) String search,
+            @PageableDefault(size = 20) Pageable pageable
+    ) {
+        Page<UserModel> users = "APPROVED".equalsIgnoreCase(status)
+                ? userService.getActiveUsers(search, pageable)
+                : userService.getPendingUsers(search, pageable);
+        return ResponseEntity.ok(users.map(userMapper::toRegistrationRequest));
     }
 
-    // Approves one pending customer registration.
-    @PostMapping("/approve/{id}")
-    public ResponseEntity<Void> approveUser(@PathVariable Long id) {
-        userService.approveUser(id);
+    @PatchMapping("/registrations/{id}")
+    public ResponseEntity<Void> updateRegistrationStatus(
+            @PathVariable Long id,
+            @Valid @RequestBody UserDTO.UpdateRegistrationStatusRequest request
+    ) {
+        if (request.status() == RegistrationDecisionEnum.APPROVED) {
+            userService.approveUser(id, request);
+        } else {
+            userService.denyUser(id);
+        }
         return ResponseEntity.noContent().build();
-    }
-
-    // Denies one pending customer registration.
-    @DeleteMapping("/deny/{id}")
-    public ResponseEntity<Void> denyUser(@PathVariable Long id) {
-        userService.denyUser(id);
-        return ResponseEntity.noContent().build();
-    }
-
-    // Returns approved customers for employee workflows.
-    @GetMapping("/customers")
-    public ResponseEntity<List<UserModel>> getActiveCustomers() {
-        return ResponseEntity.ok(userService.getActiveUsers());
     }
     
 }

@@ -74,6 +74,14 @@ public class AccountController {
         return ResponseEntity.status(HttpStatus.CREATED).body(accountService.createAccount(request));
     }
 
+    // Closes an active account with a zero balance.
+    @Operation(summary = "Close account", description = "Allows an employee to close an account that has a zero balance.")
+    @PatchMapping("/{iban}/close")
+    @PreAuthorize("hasRole('EMPLOYEE')")
+    public ResponseEntity<AccountResponseDTO> closeAccount(@PathVariable String iban) {
+        return ResponseEntity.ok(accountService.closeAccount(iban));
+    }
+
     // Updates absolute and daily transfer limits for an active account.
     @Operation(summary = "Update account limits", description = "Allows an employee to update absolute and daily transfer limits.")
     @PatchMapping("/{iban}/limits")
