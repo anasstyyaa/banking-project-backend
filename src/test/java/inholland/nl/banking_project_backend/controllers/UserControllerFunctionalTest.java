@@ -15,6 +15,7 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.web.servlet.MockMvc;
+import inholland.nl.banking_project_backend.mappers.UserMapper;
 
 import java.math.BigDecimal;
 import java.security.Principal;
@@ -48,6 +49,9 @@ class UserControllerFunctionalTest {
 
     @Autowired
     private ObjectMapper objectMapper; // Herramienta para convertir objetos Java a cadenas JSON
+
+    @MockBean
+    private UserMapper userMapper;
 
     @Test
     void dadaUnaSesionActiva_cuandoSeSolicitaPerfil_debeRetornarEstadoOkYDatosDelUsuario() throws Exception {
