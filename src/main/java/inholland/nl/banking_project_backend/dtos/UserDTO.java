@@ -75,6 +75,14 @@ public class UserDTO {
             RoleEnum role
     ) {}
 
+    public record PageResponse<T>(
+            List<T> content,
+            long totalElements,
+            int totalPages,
+            int number,
+            int size
+    ) {}
+
     public record UpdateRegistrationStatusRequest(
             @NotNull RegistrationDecisionEnum status,
             BigDecimal absoluteLimit,

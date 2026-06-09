@@ -111,7 +111,7 @@ public class UserService implements UserDetailsService {
         userRepository.save(user);
 
         log.info("Successfully provisioned checking/savings portfolio for User ID: {}", userId);
-    }//test 
+    }
 
     public void denyUser(Long userId) {
         if (!userRepository.existsById(userId)) {
@@ -120,17 +120,6 @@ public class UserService implements UserDetailsService {
 
         log.info("Employee denied registration for User ID: {}. Removing record.", userId);
         userRepository.deleteById(userId);
-    }
-
-    private CustomerProfileModel createCustomerProfile(UserModel user) {
-        return customerProfileRepository.findByUserEmail(user.getEmail())
-                .orElseGet(() -> saveCustomerProfile(user));
-    }
-    
-    private CustomerProfileModel saveCustomerProfile(UserModel user) {
-        CustomerProfileModel profile = new CustomerProfileModel();
-        profile.setUser(user);
-        return customerProfileRepository.save(profile);
     }
 
     // Creates a customer account with default transaction limits

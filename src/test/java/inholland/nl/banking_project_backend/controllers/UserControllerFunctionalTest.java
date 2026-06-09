@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import inholland.nl.banking_project_backend.models.RoleEnum;
 import inholland.nl.banking_project_backend.models.UserModel;
 import inholland.nl.banking_project_backend.repositories.AccountRepository;
-import inholland.nl.banking_project_backend.repositories.CustomerProfileRepository;
 import inholland.nl.banking_project_backend.repositories.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -48,9 +47,6 @@ class UserControllerFunctionalTest {
     private UserRepository userRepository;
 
     @Autowired
-    private CustomerProfileRepository customerProfileRepository;
-
-    @Autowired
     private AccountRepository accountRepository;
 
     //Profile endpoints
@@ -75,10 +71,14 @@ class UserControllerFunctionalTest {
         );
 
         mockMvc.perform(put("/api/v1/users/profile")
-                .with(user(customer))
-                .with(csrf())
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)));
+                        .with(user(customer))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email").value(request.get("email")))
+                .andExpect(jsonPath("$.phoneNumber").value(request.get("phoneNumber")))
+                .andExpect(jsonPath("$.token").isNotEmpty());
     }
 
     //Registration endpoints (employee-only)

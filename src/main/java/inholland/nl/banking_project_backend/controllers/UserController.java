@@ -43,7 +43,7 @@ public class UserController {
     @Operation(summary = "Get customer registrations", description = "Returns a paginated list of customer registrations filtered by status (PENDING or APPROVED), with optional search.")
     @GetMapping("/registrations")
     @PreAuthorize("hasRole('EMPLOYEE')")
-    public ResponseEntity<Page<UserDTO.RegistrationRequest>> getRegistrations(
+    public ResponseEntity<UserDTO.PageResponse<UserDTO.RegistrationRequest>> getRegistrations(
             @RequestParam(defaultValue = "PENDING") String status,
             @RequestParam(required = false) String search,
             @PageableDefault(size = 20) Pageable pageable
@@ -51,7 +51,14 @@ public class UserController {
         Page<UserModel> users = "APPROVED".equalsIgnoreCase(status)
                 ? userService.getActiveUsers(search, pageable)
                 : userService.getPendingUsers(search, pageable);
-        return ResponseEntity.ok(users.map(userMapper::toRegistrationRequest));
+        Page<UserDTO.RegistrationRequest> response = users.map(userMapper::toRegistrationRequest);
+        return ResponseEntity.ok(new UserDTO.PageResponse<>(
+                response.getContent(),
+                response.getTotalElements(),
+                response.getTotalPages(),
+                response.getNumber(),
+                response.getSize()
+        ));
     }
 
     @Operation(summary = "Update registration status", description = "Allows an employee to approve (optionally setting initial absolute/daily account limits) or deny a pending registration.")

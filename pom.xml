@@ -198,6 +198,15 @@
                 </configuration>
             </plugin>
 
+            <!-- Loads Mockito as a Java agent to avoid JDK dynamic-agent warnings during tests. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <argLine>-Xshare:off -javaagent:${settings.localRepository}/org/mockito/mockito-core/${mockito.version}/mockito-core-${mockito.version}.jar</argLine>
+                </configuration>
+            </plugin>
+
         </plugins>
     </build>
 
