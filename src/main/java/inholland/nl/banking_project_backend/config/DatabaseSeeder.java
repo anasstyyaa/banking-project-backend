@@ -53,25 +53,85 @@ public class DatabaseSeeder {
 
     private void seedDemoData() {
         UserModel employee = createUser("admin@inhollandbank.nl", "Admin123!", "Bank", "Manager", "997654321", "+31612345678", RoleEnum.ROLE_EMPLOYEE);
+
         UserModel firstCustomer = createUser("testuser@gmail.com", "User123!", "Testy", "McTestFace", "987654321", "+31612345688", RoleEnum.ROLE_CUSTOMER);
         UserModel secondCustomer = createUser("jane.customer@gmail.com", "User123!", "Jane", "Customer", "987654322", "+31612345689", RoleEnum.ROLE_CUSTOMER);
+        UserModel thirdCustomer = createUser("mark.devries@gmail.com", "User123!", "Mark", "de Vries", "987654323", "+31612345690", RoleEnum.ROLE_CUSTOMER);
+        UserModel fourthCustomer = createUser("lisa.bakker@gmail.com", "User123!", "Lisa", "Bakker", "987654324", "+31612345691", RoleEnum.ROLE_CUSTOMER);
 
         CustomerProfileModel firstProfile = createProfile(firstCustomer);
         CustomerProfileModel secondProfile = createProfile(secondCustomer);
+        CustomerProfileModel thirdProfile = createProfile(thirdCustomer);
+        CustomerProfileModel fourthProfile = createProfile(fourthCustomer);
 
-        AccountModel firstChecking = createAccount(firstProfile, "NL01INHO000000001", AccountTypeEnum.CHECKING, "1250.00", "-500.00", "1000.00");
-        AccountModel firstSavings = createAccount(firstProfile, "NL01INHO000000002", AccountTypeEnum.SAVINGS, "2500.00", "0.00", "750.00");
-        AccountModel secondChecking = createAccount(secondProfile, "NL01INHO000000003", AccountTypeEnum.CHECKING, "800.00", "-250.00", "700.00");
+        AccountModel firstChecking = createAccount(firstProfile, "NL01INHO0000000001", AccountTypeEnum.CHECKING, "1250.00", "-500.00", "1000.00");
+        AccountModel firstSavings = createAccount(firstProfile, "NL01INHO0000000002", AccountTypeEnum.SAVINGS, "2500.00", "0.00", "750.00");
+        AccountModel secondChecking = createAccount(secondProfile, "NL01INHO0000000003", AccountTypeEnum.CHECKING, "800.00", "-250.00", "700.00");
+        AccountModel secondSavings = createAccount(secondProfile, "NL01INHO0000000004", AccountTypeEnum.SAVINGS, "1600.00", "0.00", "600.00");
+        AccountModel thirdChecking = createAccount(thirdProfile, "NL01INHO0000000005", AccountTypeEnum.CHECKING, "430.00", "-300.00", "650.00");
+        AccountModel fourthChecking = createAccount(fourthProfile, "NL01INHO0000000006", AccountTypeEnum.CHECKING, "2150.00", "-400.00", "900.00");
+        AccountModel fourthSavings = createAccount(fourthProfile, "NL01INHO0000000007", AccountTypeEnum.SAVINGS, "5200.00", "0.00", "1200.00");
 
         firstCustomer.setIban(firstChecking.getIban());
         secondCustomer.setIban(secondChecking.getIban());
+        thirdCustomer.setIban(thirdChecking.getIban());
+        fourthCustomer.setIban(fourthChecking.getIban());
         userRepository.save(firstCustomer);
         userRepository.save(secondCustomer);
+        userRepository.save(thirdCustomer);
+        userRepository.save(fourthCustomer);
 
-        createTransaction(TransactionTypeEnum.DEPOSIT, null, firstChecking, "250.00", firstCustomer);
-        createTransaction(TransactionTypeEnum.TRANSFER, firstChecking, secondChecking, "75.00", firstCustomer);
-        createTransaction(TransactionTypeEnum.WITHDRAWAL, firstChecking, null, "40.00", firstCustomer);
-        createTransaction(TransactionTypeEnum.TRANSFER, secondChecking, firstSavings, "50.00", employee);
+        java.util.List<AccountModel> accounts = java.util.List.of(
+                firstChecking, firstSavings, secondChecking, secondSavings,
+                thirdChecking, fourthChecking, fourthSavings
+        );
+        java.util.List<UserModel> initiators = java.util.List.of(firstCustomer, secondCustomer, thirdCustomer, fourthCustomer, employee);
+
+        seedTransactions(accounts, initiators, 32);
+    }
+
+    private void seedTransactions(java.util.List<AccountModel> accounts, java.util.List<UserModel> initiators, int count) {
+        java.util.Random random = new java.util.Random(42); // fixed seed -> reproducible demo data
+
+        for (int i = 0; i < count; i++) {
+            TransactionTypeEnum type = TransactionTypeEnum.values()[random.nextInt(TransactionTypeEnum.values().length)];
+
+            AccountModel from = null;
+            AccountModel to = null;
+
+            switch (type) {
+                case DEPOSIT -> to = accounts.get(random.nextInt(accounts.size()));
+                case WITHDRAWAL -> from = accounts.get(random.nextInt(accounts.size()));
+                case TRANSFER -> {
+                    from = accounts.get(random.nextInt(accounts.size()));
+                    do {
+                        to = accounts.get(random.nextInt(accounts.size()));
+                    } while (to.getIban().equals(from.getIban()));
+                }
+            }
+
+            // Amounts between ~10.00 and ~510.00
+            BigDecimal amount = BigDecimal.valueOf(10 + random.nextInt(50000) / 100.0).setScale(2, java.math.RoundingMode.HALF_UP);
+
+            // Spread across the last ~60 days, at varying times of day
+            LocalDateTime timestamp = LocalDateTime.now()
+                    .minusDays(random.nextInt(60))
+                    .minusHours(random.nextInt(24))
+                    .minusMinutes(random.nextInt(60));
+
+            UserModel initiatedBy = initiators.get(random.nextInt(initiators.size()));
+
+            TransactionModel transaction = new TransactionModel();
+            transaction.setType(type);
+            transaction.setFromAccount(from);
+            transaction.setToAccount(to);
+            transaction.setFromIbanSnapshot(from == null ? null : from.getIban());
+            transaction.setToIbanSnapshot(to == null ? null : to.getIban());
+            transaction.setAmount(amount);
+            transaction.setTimestamp(timestamp);
+            transaction.setInitiatedBy(initiatedBy);
+            transactionRepository.save(transaction);
+        }
     }
 
     // Creates and stores one demo user.

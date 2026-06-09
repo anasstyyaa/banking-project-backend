@@ -96,7 +96,7 @@ class AccountControllerFunctionalTest {
                 .andExpect(jsonPath("$.message").value("Account not found."));
     }
 
-    // Search supports the user story for finding another customer's IBAN by name and stays lightweight.
+    // Search for finding another customer's IBAN by name.
     @Test
     void searchAccounts_returnsLightweightIbanLookupResponse() throws Exception {
         UserModel customer = savedUser("searchtarget", RoleEnum.ROLE_CUSTOMER);
