@@ -38,7 +38,6 @@ class AuthControllerFunctionalTest {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
-    // Register
 
     @Test
     void register_withValidPayload_returnsCreatedAndLoginResponse() throws Exception {
@@ -117,7 +116,6 @@ class AuthControllerFunctionalTest {
                 .andExpect(status().isBadRequest());
     }
 
-    // Login
 
     @Test
     void login_withValidCredentials_returnsOkAndToken() throws Exception {

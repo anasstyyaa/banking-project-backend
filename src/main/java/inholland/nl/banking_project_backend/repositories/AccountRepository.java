@@ -12,14 +12,12 @@ import java.util.Optional;
 
 @Repository
 public interface AccountRepository extends JpaRepository<AccountModel, Long> {
-    // Finds open accounts using an optional owner scope.
     @Query("""
             SELECT a FROM AccountModel a
             WHERE a.isActive = true
               AND (:ownerEmail IS NULL OR a.customer.user.email = :ownerEmail)
             """)
     Page<AccountModel> findAccounts(@Param("ownerEmail") String ownerEmail, @Param("search") String search, Pageable pageable);
-    // Finds one account by IBAN using an optional owner scope.
     @Query("""
             SELECT a FROM AccountModel a
             WHERE a.iban = :iban
@@ -30,7 +28,6 @@ public interface AccountRepository extends JpaRepository<AccountModel, Long> {
             @Param("ownerEmail") String ownerEmail
     );
 
-    // Searches active accounts by customer name or IBAN.
     @Query("SELECT a FROM AccountModel a WHERE " +
             "a.isActive = true AND (" +
             "LOWER(a.customer.user.firstName) LIKE LOWER(CONCAT('%', :term, '%')) OR " +

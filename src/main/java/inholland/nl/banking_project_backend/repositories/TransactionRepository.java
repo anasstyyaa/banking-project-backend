@@ -16,7 +16,6 @@ import java.util.Optional;
 
 @Repository
 public interface TransactionRepository extends JpaRepository<TransactionModel, Long> {
-    // Finds transactions using database-side filters and an optional viewer scope.
     @Query("""
             SELECT t FROM TransactionModel t
             LEFT JOIN t.fromAccount fa
@@ -46,7 +45,6 @@ public interface TransactionRepository extends JpaRepository<TransactionModel, L
             Pageable pageable
     );
 
-    // Finds one transaction by id using an optional viewer scope.
     @Query("""
             SELECT t FROM TransactionModel t
             LEFT JOIN t.fromAccount fa
@@ -63,7 +61,6 @@ public interface TransactionRepository extends JpaRepository<TransactionModel, L
             @Param("viewerEmail") String viewerEmail
     );
 
-    // Calculates today's outgoing transaction total for daily limit checks.
     @Query("""
             SELECT SUM(t.amount)
             FROM TransactionModel t
@@ -78,7 +75,6 @@ public interface TransactionRepository extends JpaRepository<TransactionModel, L
             @Param("outgoingTypes") List<TransactionTypeEnum> outgoingTypes
     );
 
-    // Calculates today's ATM deposit total for daily deposit limit checks.
     @Query("""
             SELECT SUM(t.amount)
             FROM TransactionModel t

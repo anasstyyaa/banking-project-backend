@@ -12,7 +12,6 @@ import java.math.BigDecimal;
 
 @Component
 public class TransactionPolicy {
-    // Validates a customer transfer before balances are changed.
     public void validateCustomerTransfer(CreateTransactionRequestDTO request, AccountModel source, AccountModel destination, BigDecimal dailyOutgoingTotal) {
         requireTransactionType(request, TransactionTypeEnum.TRANSFER);
         requireAccountField(source, "Transfer requires a source IBAN.");
@@ -24,7 +23,6 @@ public class TransactionPolicy {
         requireOutgoingLimits(source, request.amount(), dailyOutgoingTotal);
     }
 
-    // Validates an employee transfer before balances are changed.
     public void validateEmployeeTransfer(CreateTransactionRequestDTO request, AccountModel source, AccountModel destination, BigDecimal dailyOutgoingTotal) {
         requireTransactionType(request, TransactionTypeEnum.TRANSFER);
         requireAccountField(source, "Transfer requires a source IBAN.");
@@ -36,7 +34,6 @@ public class TransactionPolicy {
         requireOutgoingLimits(source, request.amount(), dailyOutgoingTotal);
     }
 
-    // Validates an ATM deposit before the account balance is changed.
     public void validateDeposit(CreateTransactionRequestDTO request, AccountModel destination, BigDecimal dailyDepositTotal) {
         requireTransactionType(request, TransactionTypeEnum.DEPOSIT);
         requireAccountField(destination, "Deposit requires a destination IBAN.");
@@ -48,7 +45,6 @@ public class TransactionPolicy {
         }
     }
 
-    // Validates an ATM withdrawal before the account balance is changed.
     public void validateWithdrawal(CreateTransactionRequestDTO request, AccountModel source, BigDecimal dailyOutgoingTotal) {
         requireTransactionType(request, TransactionTypeEnum.WITHDRAWAL);
         requireAccountField(source, "Withdrawal requires a source IBAN.");
@@ -57,49 +53,42 @@ public class TransactionPolicy {
         requireOutgoingLimits(source, request.amount(), dailyOutgoingTotal);
     }
 
-    // Ensures a transaction request is being handled by the correct workflow.
     private void requireTransactionType(CreateTransactionRequestDTO request, TransactionTypeEnum expectedType) {
         if (request.type() != expectedType) {
             throw new IllegalArgumentException("Transaction type does not match this operation.");
         }
     }
 
-    // Ensures a required transaction account field was provided and loaded.
     private void requireAccountField(AccountModel account, String message) {
         if (account == null) {
             throw new IllegalArgumentException(message);
         }
     }
 
-    // Ensures a transaction account has not been closed.
     private void requireOpenAccount(AccountModel account) {
         if (!Boolean.TRUE.equals(account.getIsActive())) {
             throw new IllegalStateException("This account is closed.");
         }
     }
 
-    // Ensures transfers never target the same account.
     private void requireDifferentAccounts(AccountModel source, AccountModel destination) {
         if (source.getIban().equals(destination.getIban())) {
             throw new IllegalArgumentException("Source and destination accounts must be different.");
         }
     }
 
-    // Ensures customer transfers to another customer only use checking accounts.
     private void requireExternalCustomerTransferAccounts(AccountModel source, AccountModel destination) {
         if (!accountsBelongToSameCustomer(source, destination)) {
             requireCheckingTransfer(source, destination, "External customer transfers can only be made between checking accounts.");
         }
     }
 
-    // Ensures transfers that must use checking accounts do not involve savings accounts.
     private void requireCheckingTransfer(AccountModel source, AccountModel destination, String message) {
         if (source.getType() != AccountTypeEnum.CHECKING || destination.getType() != AccountTypeEnum.CHECKING) {
             throw new IllegalArgumentException(message);
         }
     }
 
-    // Compares account ownership without requiring fully initialized entity equality.
     private boolean accountsBelongToSameCustomer(AccountModel source, AccountModel destination) {
         CustomerProfileModel sourceCustomer = source.getCustomer();
         CustomerProfileModel destinationCustomer = destination.getCustomer();
@@ -115,14 +104,12 @@ public class TransactionPolicy {
         return sourceCustomer == destinationCustomer;
     }
 
-    // Ensures ATM cash operations only use checking accounts.
     private void requireCheckingAccount(AccountModel account, String message) {
         if (account.getType() != AccountTypeEnum.CHECKING) {
             throw new IllegalArgumentException(message);
         }
     }
 
-    // Ensures outgoing transactions respect the account absolute and daily limits.
     private void requireOutgoingLimits(AccountModel source, BigDecimal amount, BigDecimal dailyOutgoingTotal) {
         BigDecimal balanceAfterTransaction = source.getBalance().subtract(amount);
         if (balanceAfterTransaction.compareTo(source.getAbsoluteLimit()) < 0) {

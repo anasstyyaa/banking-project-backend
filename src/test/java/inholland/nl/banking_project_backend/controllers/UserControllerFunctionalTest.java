@@ -49,7 +49,6 @@ class UserControllerFunctionalTest {
     @Autowired
     private AccountRepository accountRepository;
 
-    //Profile endpoints
 
     @Test
     void getProfile_forAuthenticatedCustomer_returnsOwnProfile() throws Exception {
@@ -81,7 +80,6 @@ class UserControllerFunctionalTest {
                 .andExpect(jsonPath("$.token").isNotEmpty());
     }
 
-    //Registration endpoints (employee-only)
 
     @Test
     void getRegistrations_forEmployee_returnsPaginatedPendingUsers() throws Exception {

@@ -54,7 +54,6 @@ public class UserDTO {
             Boolean isApproved
     ) {}
 
-    // for showing user info safely
     public record UserResponse(
             String firstName,
             String lastName,

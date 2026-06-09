@@ -14,7 +14,6 @@ import java.time.LocalDateTime;
 @Component
 public class TransactionMapper {
 
-    // Creates a transaction entity with stable IBAN snapshots for history.
     public TransactionModel toModel(
             CreateTransactionRequestDTO request,
             AccountModel fromAccount,
@@ -33,7 +32,6 @@ public class TransactionMapper {
         return transaction;
     }
 
-    // Converts a transaction entity into a frontend-safe transaction response.
     public TransactionResponseDTO toResponse(TransactionModel transaction) {
         return new TransactionResponseDTO(
                 transaction.getId(),
@@ -46,12 +44,10 @@ public class TransactionMapper {
         );
     }
 
-    // Reads an IBAN only when the account exists for the transaction type.
     private String getIban(AccountModel account) {
         return account == null ? null : account.getIban();
     }
 
-    // Presents withdrawals as negative amounts while keeping stored amount positive.
     private BigDecimal signedAmount(TransactionModel transaction) {
         if (transaction.getType() == TransactionTypeEnum.WITHDRAWAL) {
             return transaction.getAmount().negate();

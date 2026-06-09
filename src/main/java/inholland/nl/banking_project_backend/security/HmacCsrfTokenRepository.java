@@ -41,7 +41,6 @@ public class HmacCsrfTokenRepository implements CsrfTokenRepository {
 
     @Override
     public void saveToken(CsrfToken token, HttpServletRequest request, HttpServletResponse response) {
-        // Intentionally empty: no cookie, no session, no store.
     }
 
     @Override
@@ -58,7 +57,6 @@ public class HmacCsrfTokenRepository implements CsrfTokenRepository {
             String email = jwtService.extractEmail(authHeader.substring(7));
             if (email == null) return null;
 
-            // Daily rotation — UTC ensures consistent expiry regardless of server timezone.
             long day = LocalDate.now(ZoneOffset.UTC).toEpochDay();
             String data = email + ":" + day;
 

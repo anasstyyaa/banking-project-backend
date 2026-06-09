@@ -27,27 +27,23 @@ class TransactionPolicyTest {
         destination = account("NL01INHO000000002", AccountTypeEnum.CHECKING, "250.00", "-500.00", "1000.00");
     }
 
-    // Valid customer transfers pass all transaction rules.
     @Test
     void validateCustomerTransfer_allowsValidTransfer() {
         assertDoesNotThrow(() -> transactionPolicy.validateCustomerTransfer(transfer("200.00"), source, destination, dailyTotal("100.00")));
     }
 
-    // Transfers require both a loaded source and destination account.
     @Test
     void validateCustomerTransfer_throwsWhenSourceIsMissing() {
         assertThrows(IllegalArgumentException.class,
                 () -> transactionPolicy.validateCustomerTransfer(transfer("100.00"), null, destination, BigDecimal.ZERO));
     }
 
-    // Transfers cannot send money from an account to itself.
     @Test
     void validateCustomerTransfer_throwsWhenAccountsAreTheSame() {
         assertThrows(IllegalArgumentException.class,
                 () -> transactionPolicy.validateCustomerTransfer(transfer("100.00"), source, source, BigDecimal.ZERO));
     }
 
-    // Customers can transfer between their own savings and checking accounts.
     @Test
     void validateCustomerTransfer_allowsOwnSavingsToCheckingTransfer() {
         CustomerProfileModel owner = customer(1L);
@@ -58,7 +54,6 @@ class TransactionPolicyTest {
         assertDoesNotThrow(() -> transactionPolicy.validateCustomerTransfer(transfer("200.00"), source, destination, dailyTotal("100.00")));
     }
 
-    // Customers cannot send external transfers from savings accounts.
     @Test
     void validateCustomerTransfer_throwsForExternalSavingsSource() {
         source.setCustomer(customer(1L));
@@ -69,7 +64,6 @@ class TransactionPolicyTest {
                 () -> transactionPolicy.validateCustomerTransfer(transfer("100.00"), source, destination, BigDecimal.ZERO));
     }
 
-    // Customers cannot send external transfers to another customer's savings account.
     @Test
     void validateCustomerTransfer_throwsForExternalSavingsDestination() {
         source.setCustomer(customer(1L));
@@ -80,7 +74,6 @@ class TransactionPolicyTest {
                 () -> transactionPolicy.validateCustomerTransfer(transfer("100.00"), source, destination, BigDecimal.ZERO));
     }
 
-    // Employee transfers must move money between checking accounts.
     @Test
     void validateEmployeeTransfer_throwsForNonCheckingDestination() {
         destination.setType(AccountTypeEnum.SAVINGS);
@@ -89,34 +82,29 @@ class TransactionPolicyTest {
                 () -> transactionPolicy.validateEmployeeTransfer(transfer("100.00"), source, destination, BigDecimal.ZERO));
     }
 
-    // Outgoing transactions cannot move the account below the absolute limit.
     @Test
     void validateWithdrawal_throwsWhenAbsoluteLimitWouldBeExceeded() {
         assertThrows(LimitExceededException.class,
                 () -> transactionPolicy.validateWithdrawal(withdrawal("1600.00"), source, BigDecimal.ZERO));
     }
 
-    // Outgoing transactions cannot exceed today's daily limit.
     @Test
     void validateWithdrawal_throwsWhenDailyLimitWouldBeExceeded() {
         assertThrows(LimitExceededException.class,
                 () -> transactionPolicy.validateWithdrawal(withdrawal("200.00"), source, dailyTotal("900.00")));
     }
 
-    // Deposits require an open checking account and stay within the account daily limit.
     @Test
     void validateDeposit_allowsOpenDestinationAccount() {
         assertDoesNotThrow(() -> transactionPolicy.validateDeposit(deposit("100.00"), destination, dailyTotal("100.00")));
     }
 
-    // ATM deposits cannot exceed today's daily limit for the destination account.
     @Test
     void validateDeposit_throwsWhenDailyLimitWouldBeExceeded() {
         assertThrows(LimitExceededException.class,
                 () -> transactionPolicy.validateDeposit(deposit("200.00"), destination, dailyTotal("900.00")));
     }
 
-    // ATM deposits are only allowed into checking accounts.
     @Test
     void validateDeposit_throwsForSavingsDestination() {
         destination.setType(AccountTypeEnum.SAVINGS);
@@ -125,7 +113,6 @@ class TransactionPolicyTest {
                 () -> transactionPolicy.validateDeposit(deposit("100.00"), destination, BigDecimal.ZERO));
     }
 
-    // ATM withdrawals are only allowed from checking accounts.
     @Test
     void validateWithdrawal_throwsForSavingsSource() {
         source.setType(AccountTypeEnum.SAVINGS);
@@ -134,7 +121,6 @@ class TransactionPolicyTest {
                 () -> transactionPolicy.validateWithdrawal(withdrawal("100.00"), source, BigDecimal.ZERO));
     }
 
-    // Closed accounts cannot be used in transaction workflows.
     @Test
     void validateDeposit_throwsForClosedDestinationAccount() {
         destination.setIsActive(false);

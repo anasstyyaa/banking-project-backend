@@ -63,7 +63,6 @@ class UserServiceTest {
     @InjectMocks
     private UserService userService;
 
-    // SECURITY UTILITY METHOD
     private void mockSecurityContext(String email) {
         Authentication authentication = mock(Authentication.class);
         when(authentication.getName()).thenReturn(email);
@@ -73,7 +72,6 @@ class UserServiceTest {
     }
 
     
-    // USERDETAILS & CORE CRUD TESTS
 
     @Test
     void givenExistingEmail_whenLoadUserByUsername_shouldReturnUserDetails() {
@@ -108,7 +106,6 @@ class UserServiceTest {
         verify(userRepository).save(user);
     }
 
-    // PROFILE & UPDATE TESTS
 
     @Test
     void givenAuthenticatedUserWithUniqueNewEmail_whenUpdateProfile_shouldSaveAndReturnResponseWithToken() {
@@ -164,7 +161,6 @@ class UserServiceTest {
         verify(userRepository, never()).save(any());
     }
 
-    // APPROVAL & REGISTRATION WORKFLOW TESTS
     
 
     @Test
@@ -205,7 +201,6 @@ class UserServiceTest {
 
     @Test
     void givenAlreadyApprovedUser_whenApproveUser_shouldReturnEarlyWithoutProcessing() {
-        // Arrange
         Long userId = 1L;
         UserModel user = new UserModel();
         user.setIsApproved(true);
@@ -302,7 +297,6 @@ class UserServiceTest {
         }
     }
 
-    // Pending user search passes the term and isApproved=false to the repository.
     @Test
     void givenSearchTerm_whenGetPendingUsers_shouldReturnMatchingPendingUsers() {
         Pageable pageable = PageRequest.of(0, 20);
@@ -321,7 +315,6 @@ class UserServiceTest {
         verify(userRepository).findByApprovalStatus(false, "Jan", pageable);
     }
 
-    // Null search term returns all pending users without filtering.
     @Test
     void givenNullSearch_whenGetPendingUsers_shouldReturnAllPendingUsers() {
         Pageable pageable = PageRequest.of(0, 20);
@@ -339,7 +332,6 @@ class UserServiceTest {
         verify(userRepository).findByApprovalStatus(false, null, pageable);
     }
 
-    // Active user search passes the term and isApproved=true to the repository.
     @Test
     void givenSearchTerm_whenGetActiveUsers_shouldReturnMatchingActiveUsers() {
         Pageable pageable = PageRequest.of(0, 20);
@@ -358,7 +350,6 @@ class UserServiceTest {
         verify(userRepository).findByApprovalStatus(true, "Maria", pageable);
     }
 
-    // Null search term returns all active users without filtering.
     @Test
     void givenNullSearch_whenGetActiveUsers_shouldReturnAllActiveUsers() {
         Pageable pageable = PageRequest.of(0, 20);

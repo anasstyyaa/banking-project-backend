@@ -35,7 +35,6 @@ import java.time.LocalDate;
 public class TransactionController {
     private final TransactionService transactionService;
 
-    // Returns filtered transactions visible to the authenticated user.
     @Operation(summary = "Get transactions", description = "Returns transaction history with optional date, amount, IBAN, and customer filters.")
     @GetMapping
     public Page<TransactionResponseDTO> getTransactions(
@@ -57,7 +56,6 @@ public class TransactionController {
         return transactionService.getTransactions(filter, viewerEmail, pageable);
     }
 
-    // Returns one transaction visible to the authenticated user.
     @Operation(summary = "Get transaction by id", description = "Returns one transaction when the user has access.")
     @GetMapping("/{id}")
     public TransactionResponseDTO getTransaction(
@@ -68,7 +66,6 @@ public class TransactionController {
         return transactionService.getTransaction(id, viewerEmail);
     }
 
-    // Creates a transaction for customers or an employee checking-account transfer.
     @Operation(summary = "Create transaction", description = "Creates a transfer, ATM deposit, or ATM withdrawal using a transaction type.")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)

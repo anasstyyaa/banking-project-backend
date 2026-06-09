@@ -34,13 +34,11 @@ class AccountPolicyTest {
         );
     }
 
-    // Approved customers can receive newly created accounts.
     @Test
     void validateAccountCreation_allowsApprovedCustomer() {
         assertDoesNotThrow(() -> accountPolicy.validateAccountCreation(approvedUser, createRequest));
     }
 
-    // Unapproved customers must not receive bank accounts.
     @Test
     void validateAccountCreation_throwsForUnapprovedCustomer() {
         approvedUser.setIsApproved(false);
@@ -49,7 +47,6 @@ class AccountPolicyTest {
                 () -> accountPolicy.validateAccountCreation(approvedUser, createRequest));
     }
 
-    // Account creation requires complete limit values.
     @Test
     void validateAccountCreation_throwsWhenLimitsAreMissing() {
         CreateAccountRequestDTO request = new CreateAccountRequestDTO(
@@ -63,7 +60,6 @@ class AccountPolicyTest {
                 () -> accountPolicy.validateAccountCreation(approvedUser, request));
     }
 
-    // Open accounts can receive updated account limits.
     @Test
     void validateLimitUpdate_allowsOpenAccount() {
         AccountModel account = openAccount();
@@ -75,7 +71,6 @@ class AccountPolicyTest {
         assertDoesNotThrow(() -> accountPolicy.validateLimitUpdate(account, request));
     }
 
-    // Closed accounts cannot be used for limit updates.
     @Test
     void validateLimitUpdate_throwsForClosedAccount() {
         AccountModel account = openAccount();
@@ -89,7 +84,6 @@ class AccountPolicyTest {
                 () -> accountPolicy.validateLimitUpdate(account, request));
     }
 
-    // Zero-balance open accounts can be closed.
     @Test
     void validateAccountClosure_allowsOpenZeroBalanceAccount() {
         AccountModel account = openAccount();
@@ -98,7 +92,6 @@ class AccountPolicyTest {
         assertDoesNotThrow(() -> accountPolicy.validateAccountClosure(account));
     }
 
-    // Accounts with money still on them cannot be closed.
     @Test
     void validateAccountClosure_throwsForNonZeroBalance() {
         AccountModel account = openAccount();

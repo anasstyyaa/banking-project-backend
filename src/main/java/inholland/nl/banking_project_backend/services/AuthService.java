@@ -41,7 +41,6 @@ public class AuthService {
         UserModel savedUser = userService.create(newUser);
         log.info("New registration request submitted for email: {}. Status: PENDING", savedUser.getEmail());
 
-        // generating a tentative token for registration context tracking, but users cannot use it on secured endpoints because loadUserByUsername will reject them
         String token = jwtService.generateToken(savedUser.getEmail(), savedUser.getRole().name());
 
         return new UserDTO.LoginResponse(

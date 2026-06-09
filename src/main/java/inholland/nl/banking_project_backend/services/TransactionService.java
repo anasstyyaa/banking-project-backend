@@ -32,7 +32,6 @@ public class TransactionService {
     private final TransactionMapper transactionMapper;
     private final TransactionPolicy transactionPolicy;
 
-    // Creates a transaction using an optional owner scope from the controller.
     @Transactional
     public TransactionResponseDTO createTransaction(CreateTransactionRequestDTO request, UserModel initiatedBy, String ownerEmail) {
         if (ownerEmail == null && request.type() != TransactionTypeEnum.TRANSFER) {
@@ -46,7 +45,6 @@ public class TransactionService {
         };
     }
 
-    // Returns transactions using repository filters and an optional viewer scope.
     public Page<TransactionResponseDTO> getTransactions(TransactionFilterRequestDTO filter, String viewerEmail, Pageable pageable) {
         LocalDateTime start = filter.startDate() == null ? LocalDateTime.of(1970, 1, 1, 0, 0) : filter.startDate().atStartOfDay();
         LocalDateTime end = filter.endDate() == null ? LocalDateTime.now().plusDays(1) : filter.endDate().atTime(LocalTime.MAX);
@@ -64,14 +62,12 @@ public class TransactionService {
                 .map(transactionMapper::toResponse);
     }
 
-    // Returns one transaction using an optional viewer scope.
     public TransactionResponseDTO getTransaction(Long id, String viewerEmail) {
         TransactionModel transaction = transactionRepository.findTransactionById(id, viewerEmail)
                 .orElseThrow(() -> new EntityNotFoundException("Transaction not found."));
         return transactionMapper.toResponse(transaction);
     }
 
-    // Handles a transfer using scoped account lookup when the caller is a customer.
     private TransactionResponseDTO createTransfer(CreateTransactionRequestDTO request, UserModel initiatedBy, String ownerEmail) {
         AccountModel source = findAccount(request.fromIban(), ownerEmail, "Source account not found.");
         AccountModel destination = findAccount(request.toIban(), null, "Destination account not found.");
@@ -87,7 +83,6 @@ public class TransactionService {
         return saveTransaction(request, source, destination, initiatedBy);
     }
 
-    // Handles an ATM deposit into an account within the caller scope.
     private TransactionResponseDTO createDeposit(CreateTransactionRequestDTO request, UserModel initiatedBy, String ownerEmail) {
         AccountModel destination = findAccount(request.toIban(), ownerEmail, "Destination account not found.");
         BigDecimal dailyDepositTotal = destination == null ? BigDecimal.ZERO : getDailyDepositTotal(destination);
@@ -98,7 +93,6 @@ public class TransactionService {
         return saveTransaction(request, null, destination, initiatedBy);
     }
 
-    // Handles an ATM withdrawal from an account within the caller scope.
     private TransactionResponseDTO createWithdrawal(CreateTransactionRequestDTO request, UserModel initiatedBy, String ownerEmail) {
         AccountModel source = findAccount(request.fromIban(), ownerEmail, "Source account not found.");
         BigDecimal dailyOutgoingTotal = source == null ? BigDecimal.ZERO : getDailyOutgoingTotal(source);
@@ -109,7 +103,6 @@ public class TransactionService {
         return saveTransaction(request, source, null, initiatedBy);
     }
 
-    // Finds an account when an IBAN was provided, otherwise lets policy report the missing field.
     private AccountModel findAccount(String iban, String ownerEmail, String notFoundMessage) {
         if (iban == null || iban.isBlank()) {
             return null;
@@ -119,7 +112,6 @@ public class TransactionService {
                 .orElseThrow(() -> new EntityNotFoundException(notFoundMessage));
     }
 
-    // Moves money between two managed account entities.
     private void transferFunds(AccountModel source, AccountModel destination, BigDecimal amount) {
         source.setBalance(source.getBalance().subtract(amount));
         destination.setBalance(destination.getBalance().add(amount));
@@ -127,7 +119,6 @@ public class TransactionService {
         accountRepository.save(destination);
     }
 
-    // Loads today's outgoing transfer and withdrawal total for one account.
     private BigDecimal getDailyOutgoingTotal(AccountModel source) {
         LocalDate today = LocalDate.now();
         BigDecimal total = transactionRepository.sumOutgoingAmountForAccount(
@@ -139,7 +130,6 @@ public class TransactionService {
         return total == null ? BigDecimal.ZERO : total;
     }
 
-    // Loads today's ATM deposit total for one account.
     private BigDecimal getDailyDepositTotal(AccountModel destination) {
         LocalDate today = LocalDate.now();
         BigDecimal total = transactionRepository.sumDepositAmountForAccount(
@@ -151,7 +141,6 @@ public class TransactionService {
         return total == null ? BigDecimal.ZERO : total;
     }
 
-    // Stores the final transaction record after account balances are changed.
     private TransactionResponseDTO saveTransaction(
             CreateTransactionRequestDTO request,
             AccountModel source,
@@ -162,7 +151,6 @@ public class TransactionService {
         return transactionMapper.toResponse(transactionRepository.save(transaction));
     }
 
-    // Normalizes blank query parameters before repository filtering.
     private String blankToNull(String value) {
         return value == null || value.isBlank() ? null : value;
     }

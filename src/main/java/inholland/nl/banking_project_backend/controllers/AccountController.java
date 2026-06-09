@@ -34,7 +34,6 @@ import org.springframework.web.bind.annotation.RestController;
 public class AccountController {
     private final AccountService accountService;
 
-    // Returns active accounts visible to the authenticated user.
     @Operation(summary = "Get visible accounts", description = "Returns own accounts for customers and all active accounts for employees.")
     @GetMapping
     public ResponseEntity<Page<AccountResponseDTO>> getAccounts(
@@ -46,7 +45,6 @@ public class AccountController {
         return ResponseEntity.ok(accountService.getAccounts(ownerEmail, search, pageable));
     }
 
-    // Returns one active account visible to the authenticated user.
     @Operation(summary = "Get account by IBAN", description = "Returns one account if the authenticated user has access.")
     @GetMapping("/{iban}")
     public ResponseEntity<AccountResponseDTO> getAccount(
@@ -57,7 +55,6 @@ public class AccountController {
         return ResponseEntity.ok(accountService.getAccount(iban, ownerEmail));
     }
 
-    // Searches active accounts with a lightweight IBAN lookup response.
     @Operation(summary = "Search accounts", description = "Searches active accounts by customer name or IBAN.")
     @GetMapping("/search")
     public ResponseEntity<Page<AccountSearchResponseDTO>> searchAccounts(
@@ -67,7 +64,6 @@ public class AccountController {
         return ResponseEntity.ok(accountService.searchAccounts(query, pageable));
     }
 
-    // Creates a new customer account with employee-defined limits.
     @Operation(summary = "Create account", description = "Creates a new customer account with employee-defined limits.")
     @PostMapping
     @PreAuthorize("hasRole('EMPLOYEE')")
@@ -75,7 +71,6 @@ public class AccountController {
         return ResponseEntity.status(HttpStatus.CREATED).body(accountService.createAccount(request));
     }
 
-    // Closes an active account with a zero balance.
     @Operation(summary = "Close account", description = "Allows an employee to close an account that has a zero balance.")
     @PatchMapping("/{iban}/close")
     @PreAuthorize("hasRole('EMPLOYEE')")
@@ -83,7 +78,6 @@ public class AccountController {
         return ResponseEntity.ok(accountService.closeAccount(iban));
     }
 
-    // Updates absolute and daily transaction limits for an active account.
     @Operation(summary = "Update account limits", description = "Allows an employee to update absolute and daily transaction limits.")
     @PatchMapping("/{iban}/limits")
     @PreAuthorize("hasRole('EMPLOYEE')")

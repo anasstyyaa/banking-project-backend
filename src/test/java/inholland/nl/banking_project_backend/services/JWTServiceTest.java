@@ -26,7 +26,6 @@ class JWTServiceTest {
         ReflectionTestUtils.setField(jwtService, "secretKey", secureMockKey);
     }
 
-    // GENERATION & EXTRACTION TESTS
 
     @Test
     void givenEmailAndRole_whenGenerateToken_shouldCreateValidJwtString() {
@@ -46,7 +45,6 @@ class JWTServiceTest {
         assertEquals(testEmail, extractedEmail);
     }
 
-    // VALIDATION TESTS
 
     @Test
     void givenMatchingEmailAndActiveToken_whenIsTokenValid_shouldReturnTrue() {

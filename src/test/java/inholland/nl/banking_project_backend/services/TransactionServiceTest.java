@@ -87,7 +87,6 @@ class TransactionServiceTest {
         );
     }
 
-    // Customer transfers load scoped source accounts, validate policy, move balances, and save history.
     @Test
     void createTransaction_customerTransfer_movesMoneyAndSavesTransaction() {
         CreateTransactionRequestDTO request = transferRequest("100.00");
@@ -110,7 +109,6 @@ class TransactionServiceTest {
         verify(transactionRepository).save(transaction);
     }
 
-    // Employee transfers use the unrestricted owner scope and employee transfer policy.
     @Test
     void createTransaction_employeeTransfer_usesEmployeePolicy() {
         CreateTransactionRequestDTO request = transferRequest("100.00");
@@ -127,7 +125,6 @@ class TransactionServiceTest {
         verify(transactionPolicy).validateEmployeeTransfer(request, source, destination, dailyOutgoingTotal);
     }
 
-    // Deposits update only the destination balance and store the transaction.
     @Test
     void createTransaction_deposit_updatesDestinationBalance() {
         CreateTransactionRequestDTO request = new CreateTransactionRequestDTO(
@@ -150,7 +147,6 @@ class TransactionServiceTest {
         verify(accountRepository).save(destination);
     }
 
-    // Withdrawals update only the source balance and store the transaction.
     @Test
     void createTransaction_withdrawal_updatesSourceBalance() {
         CreateTransactionRequestDTO request = new CreateTransactionRequestDTO(
@@ -173,7 +169,6 @@ class TransactionServiceTest {
         verify(accountRepository).save(source);
     }
 
-    // Policy failures stop balance persistence and transaction persistence.
     @Test
     void createTransaction_policyFailureDoesNotSaveAnything() {
         CreateTransactionRequestDTO request = transferRequest("100.00");
@@ -190,7 +185,6 @@ class TransactionServiceTest {
         verify(transactionRepository, never()).save(any());
     }
 
-    // Missing accounts surface as not-found service errors.
     @Test
     void createTransaction_throwsWhenSourceAccountIsMissing() {
         CreateTransactionRequestDTO request = transferRequest("100.00");
@@ -202,7 +196,6 @@ class TransactionServiceTest {
         verify(transactionPolicy, never()).validateCustomerTransfer(any(), any(), any(), any());
     }
 
-    // Transaction history delegates filtering, viewer scope, and pagination to the repository.
     @Test
     void getTransactions_returnsMappedPage() {
         Pageable pageable = PageRequest.of(0, 20);
@@ -218,7 +211,6 @@ class TransactionServiceTest {
         assertEquals(response, result.getContent().getFirst());
     }
 
-    // Single transaction lookup respects the nullable viewer scope.
     @Test
     void getTransaction_returnsMappedTransaction() {
         when(transactionRepository.findTransactionById(1L, user.getEmail())).thenReturn(Optional.of(transaction));
