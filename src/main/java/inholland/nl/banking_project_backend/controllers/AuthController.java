@@ -2,6 +2,7 @@ package inholland.nl.banking_project_backend.controllers;
 
 import inholland.nl.banking_project_backend.dtos.UserDTO;
 import inholland.nl.banking_project_backend.models.UserModel;
+import inholland.nl.banking_project_backend.security.HmacCsrfTokenRepository;
 import inholland.nl.banking_project_backend.services.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -29,6 +30,7 @@ import java.util.Map;
 public class AuthController {
 
     private final AuthService authService;
+    private final HmacCsrfTokenRepository csrfTokenRepository;
 
     @Operation(summary = "Register a new customer account", description = "Submits registration credentials. The account will remain pending until approved by an employee.")
     @ApiResponses(value = {
@@ -76,8 +78,9 @@ public class AuthController {
     }
 
     @GetMapping("/csrf")
-    public ResponseEntity<Map<String, String>> getCsrfToken(CsrfToken csrfToken) {
-        return ResponseEntity.ok(Map.of("token", csrfToken.getToken()));
+    public ResponseEntity<Map<String, String>> getCsrfToken(HttpServletRequest request) {
+        String token = csrfTokenRepository.computeToken(request);
+        return ResponseEntity.ok(Map.of("token", token != null ? token : ""));
     }
 
 }
