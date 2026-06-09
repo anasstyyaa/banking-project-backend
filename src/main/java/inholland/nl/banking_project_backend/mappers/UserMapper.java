@@ -2,7 +2,6 @@ package inholland.nl.banking_project_backend.mappers;
 
 import inholland.nl.banking_project_backend.dtos.UserDTO;
 import inholland.nl.banking_project_backend.models.UserModel;
-import inholland.nl.banking_project_backend.models.RoleEnum;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
@@ -14,6 +13,7 @@ public interface UserMapper {
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "iban", ignore = true)
     @Mapping(target = "password", ignore = true)
+    @Mapping(target = "authorities", ignore = true)
     UserModel toEntity(UserDTO.RegisterRequest dto);
 
 

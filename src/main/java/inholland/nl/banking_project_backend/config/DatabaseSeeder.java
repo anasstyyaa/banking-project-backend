@@ -13,11 +13,9 @@ import inholland.nl.banking_project_backend.repositories.TransactionRepository;
 import inholland.nl.banking_project_backend.repositories.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.math.BigDecimal;
@@ -168,17 +166,17 @@ public class DatabaseSeeder {
         return accountRepository.save(account);
     }
 
-    // Creates and stores one demo transaction record.
-    private void createTransaction(TransactionTypeEnum type, AccountModel fromAccount, AccountModel toAccount, String amount, UserModel initiatedBy) {
-        TransactionModel transaction = new TransactionModel();
-        transaction.setType(type);
-        transaction.setFromAccount(fromAccount);
-        transaction.setToAccount(toAccount);
-        transaction.setFromIbanSnapshot(fromAccount == null ? null : fromAccount.getIban());
-        transaction.setToIbanSnapshot(toAccount == null ? null : toAccount.getIban());
-        transaction.setAmount(new BigDecimal(amount));
-        transaction.setTimestamp(LocalDateTime.now().minusDays(1));
-        transaction.setInitiatedBy(initiatedBy);
-        transactionRepository.save(transaction);
-    }
+     // Creates and stores one demo transaction record.
+    // private void createTransaction(TransactionTypeEnum type, AccountModel fromAccount, AccountModel toAccount, String amount, UserModel initiatedBy) {
+    //     TransactionModel transaction = new TransactionModel();
+    //     transaction.setType(type);
+    //     transaction.setFromAccount(fromAccount);
+    //     transaction.setToAccount(toAccount);
+    //     transaction.setFromIbanSnapshot(fromAccount == null ? null : fromAccount.getIban());
+    //     transaction.setToIbanSnapshot(toAccount == null ? null : toAccount.getIban());
+    //     transaction.setAmount(new BigDecimal(amount));
+    //     transaction.setTimestamp(LocalDateTime.now().minusDays(1));
+    //     transaction.setInitiatedBy(initiatedBy);
+    //     transactionRepository.save(transaction);
+    // }
 }
