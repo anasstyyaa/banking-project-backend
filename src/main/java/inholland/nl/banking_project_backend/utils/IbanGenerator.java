@@ -20,7 +20,6 @@ public class IbanGenerator {
 
         String partialIban = BANK_CODE + accountNumber;
 
-        // formula: 98 - (numeric_representation % 97)
         String checkDigits = calculateCheckDigits(partialIban);
         return COUNTRY_CODE + checkDigits + partialIban;
     }
@@ -41,7 +40,6 @@ public class IbanGenerator {
     }
 
     private String calculateCheckDigits(String partialIban) {
-        // N = 23, L = 21 => 2321 + 00
         String numericString = convertToNumeric(partialIban) + "232100";
         BigInteger ibanNumber = new BigInteger(numericString);
         int mod97 = ibanNumber.remainder(BigInteger.valueOf(97)).intValue();

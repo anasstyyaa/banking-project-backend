@@ -35,7 +35,6 @@ public class AccountService {
     private final CustomerProfileRepository customerProfileRepository;
     private final AccountPolicy accountPolicy;
 
-    // Creates an additional active account for an approved customer with employee-defined limits.
     @Transactional(rollbackOn = Exception.class)
     public AccountResponseDTO createAccount(CreateAccountRequestDTO request) {
         UserModel user = userRepository.findById(request.customerUserId())
@@ -59,7 +58,6 @@ public class AccountService {
         return accountMapper.toResponse(savedAccount);
     }
 
-    // Returns open accounts using an optional owner scope, if an employee return all, if owner only shows the specific thing for that owner.
     public Page<AccountResponseDTO> getAccounts(String ownerEmail, String search, Pageable pageable) {
         if (search != null && !search.isBlank()) {
             return accountRepository.searchAccounts(search, pageable)
@@ -69,7 +67,6 @@ public class AccountService {
                 .map(accountMapper::toResponse);
     }
 
-    // Returns one account by IBAN using an optional owner scope.
     public AccountResponseDTO getAccount(String iban, String ownerEmail) {
         AccountModel account = accountRepository.findAccountByIban(iban, ownerEmail)
                 .orElseThrow(() -> new EntityNotFoundException("Account not found."));
@@ -77,7 +74,6 @@ public class AccountService {
         return accountMapper.toResponse(account);
     }
 
-    // Updates employee-managed transaction limits for one active account.
     @Transactional
     public AccountResponseDTO updateLimits(String iban, UpdateAccountLimitsRequestDTO request) {
         AccountModel account = accountRepository.findAccountByIban(iban, null)
@@ -97,7 +93,6 @@ public class AccountService {
         return accountMapper.toResponse(accountRepository.save(account));
     }
 
-    // Searches active accounts with a lightweight response for IBAN lookup.
     public Page<AccountSearchResponseDTO> searchAccounts(String term, Pageable pageable) {
         return accountRepository.searchAccounts(term, pageable)
                 .map(accountMapper::toSearchResponse);

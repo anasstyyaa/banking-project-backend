@@ -50,7 +50,6 @@ class AccountControllerFunctionalTest {
     @Autowired
     private AccountRepository accountRepository;
 
-    // Employee account listing returns a Spring page response.
     @Test
     void getAccounts_forEmployee_returnsPaginatedAccounts() throws Exception {
         UserModel employee = savedUser("employee", RoleEnum.ROLE_EMPLOYEE);
@@ -67,7 +66,6 @@ class AccountControllerFunctionalTest {
                 .andExpect(jsonPath("$.size").value(20));
     }
 
-    // Customer account listing is scoped to the authenticated customer only.
     @Test
     void getAccounts_forCustomer_returnsOnlyOwnAccounts() throws Exception {
         UserModel customer = savedUser("customer", RoleEnum.ROLE_CUSTOMER);
@@ -83,7 +81,6 @@ class AccountControllerFunctionalTest {
                 .andExpect(jsonPath("$.content[0].iban").value("NL11INHO000000102"));
     }
 
-    // Customers cannot retrieve another customer's account by IBAN.
     @Test
     void getAccount_forCustomerWhenAccountBelongsToSomeoneElse_returnsNotFound() throws Exception {
         UserModel customer = savedUser("customer", RoleEnum.ROLE_CUSTOMER);
@@ -96,7 +93,6 @@ class AccountControllerFunctionalTest {
                 .andExpect(jsonPath("$.message").value("Account not found."));
     }
 
-    // Search for finding another customer's IBAN by name.
     @Test
     void searchAccounts_returnsLightweightIbanLookupResponse() throws Exception {
         UserModel customer = savedUser("searchtarget", RoleEnum.ROLE_CUSTOMER);
@@ -117,7 +113,6 @@ class AccountControllerFunctionalTest {
                 .andExpect(jsonPath("$.content[0].customerEmail").doesNotExist());
     }
 
-    // Employees can create a customer account through the account resource endpoint.
     @Test
     void createAccount_forEmployee_returnsCreatedAccount() throws Exception {
         UserModel employee = savedUser("employee", RoleEnum.ROLE_EMPLOYEE);
@@ -141,7 +136,6 @@ class AccountControllerFunctionalTest {
                 .andExpect(jsonPath("$.dailyLimit").value(1000));
     }
 
-    // Customers are blocked from employee-only account creation.
     @Test
     void createAccount_forCustomer_returnsForbidden() throws Exception {
         UserModel customer = savedUser("customer", RoleEnum.ROLE_CUSTOMER);
@@ -160,7 +154,6 @@ class AccountControllerFunctionalTest {
                 .andExpect(status().isForbidden());
     }
 
-    // DTO validation returns bad request for invalid limit updates.
     @Test
     void updateLimits_withInvalidDailyLimit_returnsBadRequest() throws Exception {
         UserModel employee = savedUser("employee", RoleEnum.ROLE_EMPLOYEE);
@@ -180,7 +173,6 @@ class AccountControllerFunctionalTest {
                 .andExpect(jsonPath("$.errors.dailyLimit").exists());
     }
 
-    // Employees can close a zero-balance account through the account resource endpoint.
     @Test
     void closeAccount_forZeroBalanceAccount_returnsInactiveAccount() throws Exception {
         UserModel employee = savedUser("employee", RoleEnum.ROLE_EMPLOYEE);
@@ -195,7 +187,6 @@ class AccountControllerFunctionalTest {
                 .andExpect(jsonPath("$.isActive").value(false));
     }
 
-    // Accounts with money still on them cannot be closed through the API.
     @Test
     void closeAccount_forNonZeroBalanceAccount_returnsBadRequest() throws Exception {
         UserModel employee = savedUser("employee", RoleEnum.ROLE_EMPLOYEE);

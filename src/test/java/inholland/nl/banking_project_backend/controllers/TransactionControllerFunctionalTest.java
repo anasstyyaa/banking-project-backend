@@ -56,7 +56,6 @@ class TransactionControllerFunctionalTest {
     @Autowired
     private TransactionRepository transactionRepository;
 
-    // Transaction history returns a paginated API response.
     @Test
     void getTransactions_returnsPaginatedResponse() throws Exception {
         UserModel employee = savedUser("employee", RoleEnum.ROLE_EMPLOYEE);
@@ -74,7 +73,6 @@ class TransactionControllerFunctionalTest {
                 .andExpect(jsonPath("$.size").value(20));
     }
 
-    // Customers only see transactions connected to their own accounts.
     @Test
     void getTransactions_forCustomer_returnsOnlyVisibleTransactions() throws Exception {
         UserModel customer = savedUser("customer", RoleEnum.ROLE_CUSTOMER);
@@ -92,7 +90,6 @@ class TransactionControllerFunctionalTest {
                 .andExpect(jsonPath("$.content[0].fromIban").value("NL12INHO0000000103"));
     }
 
-    // Employee transaction history applies date, amount, IBAN, and pagination filters in the API.
     @Test
     void getTransactions_withDateAmountAndIbanFilters_returnsMatchingTransaction() throws Exception {
         UserModel employee = savedUser("employee", RoleEnum.ROLE_EMPLOYEE);
@@ -115,7 +112,6 @@ class TransactionControllerFunctionalTest {
                 .andExpect(jsonPath("$.content[0].amount").value(123.45));
     }
 
-    // Employee transaction history can be scoped to one customer by user id.
     @Test
     void getTransactions_withCustomerUserIdFilter_returnsOnlyThatCustomerTransactions() throws Exception {
         UserModel employee = savedUser("employee", RoleEnum.ROLE_EMPLOYEE);
@@ -134,7 +130,6 @@ class TransactionControllerFunctionalTest {
                 .andExpect(jsonPath("$.content[0].fromIban").value(customerAccount.getIban()));
     }
 
-    // Customer transfers persist a transaction and return created.
     @Test
     void createTransaction_customerTransfer_returnsCreated() throws Exception {
         UserModel customer = savedUser("customer", RoleEnum.ROLE_CUSTOMER);
@@ -159,7 +154,6 @@ class TransactionControllerFunctionalTest {
                 .andExpect(jsonPath("$.amount").value(100));
     }
 
-    // Customers can move money between their own savings and checking accounts.
     @Test
     void createTransaction_customerOwnSavingsToCheckingTransfer_returnsCreated() throws Exception {
         UserModel customer = savedUser("customer", RoleEnum.ROLE_CUSTOMER);
@@ -183,7 +177,6 @@ class TransactionControllerFunctionalTest {
                 .andExpect(jsonPath("$.toIban").value(destination.getIban()));
     }
 
-    // External customer transfers cannot use savings accounts.
     @Test
     void createTransaction_customerExternalSavingsTransfer_returnsBadRequest() throws Exception {
         UserModel customer = savedUser("customer", RoleEnum.ROLE_CUSTOMER);
@@ -205,7 +198,6 @@ class TransactionControllerFunctionalTest {
                 .andExpect(jsonPath("$.message").value("External customer transfers can only be made between checking accounts."));
     }
 
-    // Employee transfers are allowed only between checking accounts.
     @Test
     void createTransaction_employeeCheckingTransfer_returnsCreated() throws Exception {
         UserModel employee = savedUser("employee", RoleEnum.ROLE_EMPLOYEE);
@@ -227,7 +219,6 @@ class TransactionControllerFunctionalTest {
                 .andExpect(jsonPath("$.initiatedByEmail").value(employee.getEmail()));
     }
 
-    // Staff cannot use the transaction endpoint for ATM deposits or withdrawals.
     @Test
     void createTransaction_employeeDeposit_returnsBadRequest() throws Exception {
         UserModel employee = savedUser("employee", RoleEnum.ROLE_EMPLOYEE);
@@ -247,7 +238,6 @@ class TransactionControllerFunctionalTest {
                 .andExpect(jsonPath("$.message").value("Only transfers can be created for customer accounts by staff."));
     }
 
-    // ATM deposits through the transaction API can only target checking accounts.
     @Test
     void createTransaction_customerDepositToSavings_returnsBadRequest() throws Exception {
         UserModel customer = savedUser("customer", RoleEnum.ROLE_CUSTOMER);
@@ -267,7 +257,6 @@ class TransactionControllerFunctionalTest {
                 .andExpect(jsonPath("$.message").value("ATM deposits can only be made into checking accounts."));
     }
 
-    // ATM withdrawals through the transaction API can only use checking accounts.
     @Test
     void createTransaction_customerWithdrawalFromSavings_returnsBadRequest() throws Exception {
         UserModel customer = savedUser("customer", RoleEnum.ROLE_CUSTOMER);
@@ -287,7 +276,6 @@ class TransactionControllerFunctionalTest {
                 .andExpect(jsonPath("$.message").value("ATM withdrawals can only be made from checking accounts."));
     }
 
-    // Daily outgoing limit violations are returned as unprocessable entity.
     @Test
     void createTransaction_whenDailyLimitExceeded_returnsUnprocessableEntity() throws Exception {
         UserModel customer = savedUser("customer", RoleEnum.ROLE_CUSTOMER);
@@ -309,7 +297,6 @@ class TransactionControllerFunctionalTest {
                 .andExpect(jsonPath("$.message").value("This transaction exceeds the account daily limit."));
     }
 
-    // ATM deposit daily limit violations are returned as unprocessable entity.
     @Test
     void createTransaction_whenDepositDailyLimitExceeded_returnsUnprocessableEntity() throws Exception {
         UserModel customer = savedUser("customer", RoleEnum.ROLE_CUSTOMER);
@@ -330,7 +317,6 @@ class TransactionControllerFunctionalTest {
                 .andExpect(jsonPath("$.message").value("This transaction exceeds the account daily limit."));
     }
 
-    // Absolute limit violations are returned as unprocessable entity.
     @Test
     void createTransaction_whenAbsoluteLimitExceeded_returnsUnprocessableEntity() throws Exception {
         UserModel customer = savedUser("customer", RoleEnum.ROLE_CUSTOMER);
@@ -352,7 +338,6 @@ class TransactionControllerFunctionalTest {
                 .andExpect(jsonPath("$.message").value("This transaction exceeds the account absolute limit."));
     }
 
-    // Missing transaction account fields are reported as bad request.
     @Test
     void createTransaction_missingTransferSource_returnsBadRequest() throws Exception {
         UserModel customer = savedUser("customer", RoleEnum.ROLE_CUSTOMER);

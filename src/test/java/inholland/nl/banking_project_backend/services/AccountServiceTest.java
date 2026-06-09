@@ -92,7 +92,6 @@ class AccountServiceTest {
         );
     }
 
-    // Account creation loads the customer/profile, applies policy, saves, and maps the result.
     @Test
     void createAccount_savesAccountForApprovedCustomer() {
         CreateAccountRequestDTO request = createAccountRequest();
@@ -109,7 +108,6 @@ class AccountServiceTest {
         verify(accountRepository).save(any(AccountModel.class));
     }
 
-    // Missing customers stop account creation before policy or persistence.
     @Test
     void createAccount_throwsWhenUserIsMissing() {
         CreateAccountRequestDTO request = createAccountRequest();
@@ -121,7 +119,6 @@ class AccountServiceTest {
         verify(accountRepository, never()).save(any());
     }
 
-    // Account listing delegates to the repository nullable owner scope and maps each account.
     @Test
     void getAccounts_returnsMappedPage() {
         Pageable pageable = PageRequest.of(0, 20);
@@ -135,7 +132,6 @@ class AccountServiceTest {
         assertEquals(accountResponse, result.getContent().getFirst());
     }
 
-    // Single-account lookup validates the account is open before mapping.
     @Test
     void getAccount_returnsMappedAccount() {
         when(accountRepository.findAccountByIban(account.getIban(), customer.getEmail())).thenReturn(Optional.of(account));
@@ -147,7 +143,6 @@ class AccountServiceTest {
         verify(accountPolicy).requireOpenAccount(account);
     }
 
-    // Limit updates call policy, mutate the account, save, and map the saved result.
     @Test
     void updateLimits_savesUpdatedLimits() {
         UpdateAccountLimitsRequestDTO request = new UpdateAccountLimitsRequestDTO(
@@ -166,7 +161,6 @@ class AccountServiceTest {
         verify(accountPolicy).validateLimitUpdate(account, request);
     }
 
-    // Account search returns only the lightweight mapped search DTO page.
     @Test
     void searchAccounts_returnsMappedSearchPage() {
         Pageable pageable = PageRequest.of(0, 10);
@@ -179,7 +173,6 @@ class AccountServiceTest {
         assertEquals(searchResponse, result.getContent().getFirst());
     }
 
-    // Account closure validates policy, marks the account inactive, saves, and maps the saved account.
     @Test
     void closeAccount_marksAccountInactiveAndSaves() {
         account.setBalance(BigDecimal.ZERO);
@@ -195,7 +188,6 @@ class AccountServiceTest {
         verify(accountRepository).save(account);
     }
 
-    // Account closure stops before persistence when the policy rejects the account.
     @Test
     void closeAccount_policyFailureDoesNotSave() {
         when(accountRepository.findAccountByIban(account.getIban(), null)).thenReturn(Optional.of(account));

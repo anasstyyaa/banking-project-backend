@@ -42,7 +42,6 @@ class AuthServiceTest {
     @InjectMocks
     private AuthService authService;
 
-    // REGISTER TESTS
 
     @Test
     void givenValidRegistrationData_whenRegister_shouldReturnLoginResponse() {
@@ -96,7 +95,6 @@ class AuthServiceTest {
         verify(userService, never()).create(any());
     }
 
-    // LOGIN TESTS
 
     @Test
     void givenValidCredentials_whenLogin_shouldReturnLoginResponse() {

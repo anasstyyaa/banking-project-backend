@@ -56,7 +56,6 @@ public class UserService implements UserDetailsService {
         return toProfileResponse(findByEmail(email));
     }
 
-    // Updates the profile for the currently authenticated user and returns a fresh token if email changed.
     public UserDTO.UpdateProfileResponse updateProfile(UserDTO.UpdateProfileRequest request) {
         String email = getAuthEmail();
         UserModel user = findByEmail(email);
@@ -122,7 +121,6 @@ public class UserService implements UserDetailsService {
         userRepository.deleteById(userId);
     }
 
-    // Creates a customer account with default transaction limits
     private AccountModel createAccount(CustomerProfileModel profile, AccountTypeEnum type, BigDecimal balance, BigDecimal absoluteLimit, BigDecimal dailyLimit) {
         AccountModel account = new AccountModel();
         account.setCustomer(profile);
@@ -135,7 +133,6 @@ public class UserService implements UserDetailsService {
         return accountRepository.save(account);
     }
 
-    // Maps the authenticated customer, their accounts into the profile
     private UserDTO.ProfileResponse toProfileResponse(UserModel user) {
         List<AccountModel> accounts = getAccountsForProfile(user);
         BigDecimal totalBalance = accounts.stream()
@@ -154,7 +151,6 @@ public class UserService implements UserDetailsService {
         );
     }
 
-    // Maps the updated customer profile and gives a new token for the new email 
     private UserDTO.UpdateProfileResponse toUpdateProfileResponse(UserModel user, String token) {
         List<AccountModel> accounts = getAccountsForProfile(user);
         BigDecimal totalBalance = accounts.stream()
@@ -178,7 +174,6 @@ public class UserService implements UserDetailsService {
     private List<AccountModel> getAccountsForProfile(UserModel user) {
         return accountRepository.findAccounts(user.getEmail(), null, Pageable.unpaged()).getContent();    }
 
-    // Keeps account mapping limited to fields the customer may view.
     private UserDTO.AccountDetailsResponse toAccountDetailsResponse(AccountModel account) {
         return new UserDTO.AccountDetailsResponse(
                 account.getId(),

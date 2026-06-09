@@ -19,7 +19,6 @@ import java.util.Map;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    // handles validation errors (@NotBlank, @Email, @Size)
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidationExceptions(MethodArgumentNotValidException ex) {
         Map<String, String> errors = new HashMap<>();
@@ -37,7 +36,6 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
     }
 
-    // handles custom business logic
     @ExceptionHandler(ResponseStatusException.class)
     public ResponseEntity<ErrorResponseDTO> handleResponseStatusException(ResponseStatusException ex) {
         ErrorResponseDTO error = new ErrorResponseDTO(
@@ -48,7 +46,6 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(error, ex.getStatusCode());
     }
 
-    // handles "not found"
     @ExceptionHandler(EntityNotFoundException.class)
     public ResponseEntity<ErrorResponseDTO> handleNotFound(EntityNotFoundException ex) {
         ErrorResponseDTO error = new ErrorResponseDTO(
@@ -59,7 +56,6 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
     }
 
-    // handles authentication failures (invalid email/password)
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<ErrorResponseDTO> handleBadCredentials(BadCredentialsException ignored) {
         ErrorResponseDTO error = new ErrorResponseDTO(
@@ -80,13 +76,11 @@ public class GlobalExceptionHandler {
         return buildError(HttpStatus.BAD_REQUEST, ex.getMessage());
     }
 
-    // handles all domain/business exceptions — each carries its own HTTP status
     @ExceptionHandler(BankingException.class)
     public ResponseEntity<ErrorResponseDTO> handleBankingException(BankingException ex) {
         return buildError(ex.getStatus(), ex.getMessage());
     }
 
-    // creates the shared error response body for service-layer exceptions
     private ResponseEntity<ErrorResponseDTO> buildError(HttpStatusCode status, String message) {
         ErrorResponseDTO error = new ErrorResponseDTO(status.value(), message, LocalDateTime.now());
         return new ResponseEntity<>(error, status);
