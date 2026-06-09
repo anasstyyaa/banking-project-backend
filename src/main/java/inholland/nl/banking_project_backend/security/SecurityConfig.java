@@ -36,6 +36,7 @@ public class SecurityConfig {
 
     private final JWTFilter jwtFilter;
     private final UserService userService;
+    private final HmacCsrfTokenRepository csrfTokenRepository;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -55,11 +56,6 @@ public class SecurityConfig {
     }
 
     @Bean
-    public CookieSameSiteSupplier cookieSameSiteSupplier() {
-        return CookieSameSiteSupplier.ofNone().whenHasNameMatching("XSRF-TOKEN");
-    }
-
-    @Bean
     public SecurityFilterChain securityFilterChain(
             HttpSecurity http,
             AuthenticationProvider authProvider
@@ -70,7 +66,7 @@ public class SecurityConfig {
         http
                 .cors(withDefaults())
                 .csrf(csrf -> csrf
-                        .csrfTokenRepository(customCsrfTokenRepository())
+                        .csrfTokenRepository(csrfTokenRepository)
                         .csrfTokenRequestHandler(requestHandler)
                         .ignoringRequestMatchers("/h2-console/**")
                         .ignoringRequestMatchers("/api/v1/auth/csrf")
@@ -115,14 +111,5 @@ public class SecurityConfig {
         source.registerCorsConfiguration("/**", configuration);
         return source;
     }
-
-    private CookieCsrfTokenRepository customCsrfTokenRepository() {
-        CookieCsrfTokenRepository repository = CookieCsrfTokenRepository.withHttpOnlyFalse();
-        repository.setCookieCustomizer(customizer -> customizer
-                .sameSite("None")
-                .secure(true)
-                .path("/")
-        );
-        return repository;
-    }
+    
 }

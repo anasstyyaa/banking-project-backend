@@ -2,6 +2,7 @@ package inholland.nl.banking_project_backend.controllers;
 
 import inholland.nl.banking_project_backend.dtos.UserDTO;
 import inholland.nl.banking_project_backend.models.UserModel;
+import inholland.nl.banking_project_backend.security.HmacCsrfTokenRepository;
 import inholland.nl.banking_project_backend.services.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -20,6 +21,8 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
@@ -27,6 +30,7 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final AuthService authService;
+    private final HmacCsrfTokenRepository csrfTokenRepository;
 
     @Operation(summary = "Register a new customer account", description = "Submits registration credentials. The account will remain pending until approved by an employee.")
     @ApiResponses(value = {
@@ -74,12 +78,9 @@ public class AuthController {
     }
 
     @GetMapping("/csrf")
-    public ResponseEntity<Void> getCsrfToken(HttpServletRequest request, HttpServletResponse response) {
-        CsrfToken csrfToken = (CsrfToken) request.getAttribute(CsrfToken.class.getName());
-        if (csrfToken != null) {
-            csrfToken.getToken(); 
-        }
-        return ResponseEntity.ok().build();
+    public ResponseEntity<Map<String, String>> getCsrfToken(HttpServletRequest request) {
+        String token = csrfTokenRepository.computeToken(request);
+        return ResponseEntity.ok(Map.of("token", token != null ? token : ""));
     }
 
 }
